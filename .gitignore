@@ -56,3 +56,5 @@ ios/
 # Caches
 .cache/
 .npm/
+
+commit-message.txt
