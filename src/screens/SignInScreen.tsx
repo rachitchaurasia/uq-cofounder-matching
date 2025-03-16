@@ -50,9 +50,10 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.buttonText}>SIGN IN</Text>
           </TouchableOpacity>
 
+          {/* 🔥 Modified Join Now Button */}
           <TouchableOpacity 
             style={styles.joinButton}
-            onPress={() => navigation.navigate('SignUp')}
+            onPress={() => navigation.navigate('Name')} // Navigate to Name screen
           >
             <Text style={styles.joinButtonText}>Not a member? Join now!</Text>
           </TouchableOpacity>
@@ -138,4 +139,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textDecorationLine: 'underline',
   },
-}); 
+});
