@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 
 
-import crossIcon from "../assets/cross.png"; // Make sure the cross icon is clear
+import crossIcon from "../assets/cross.png";
 
 export const NameScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -13,6 +13,30 @@ export const NameScreen = () => {
   // State for user input
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [formErrors, setFormErrors] = useState<{ firstName?: string; lastName?: string }>({});
+
+  // Function to validate form
+  const validateForm = () => {
+    let errors = {};
+    if (!firstName.trim()) {
+      errors = { ...errors, firstName: "First name is required" };
+    }
+    if (!lastName.trim()) {
+      errors = { ...errors, lastName: "Last name is required" };
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Function to handle continue button press
+  const handleContinue = () => {
+    if (validateForm()) {
+      // Store the values (you can use context, async storage, or pass to next screen)
+      console.log("First Name:", firstName);
+      console.log("Last Name:", lastName);
+      navigation.navigate("Role");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -30,27 +54,34 @@ export const NameScreen = () => {
       <Text style={styles.title}>Let's Start with your Name</Text>
 
       {/* First Name Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="First Name"
-        placeholderTextColor="#828693"
-        value={firstName}
-        onChangeText={setFirstName}
-      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="First Name"
+          placeholderTextColor="#828693"
+          value={firstName}
+          onChangeText={setFirstName}
+        />
+        {formErrors.firstName && <Text style={styles.errorText}>{formErrors.firstName}</Text>}
+      </View>
 
       {/* Last Name Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Last Name"
-        placeholderTextColor="#828693"
-        value={lastName}
-        onChangeText={setLastName}
-      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Last Name"
+          placeholderTextColor="#828693" 
+          value={lastName}
+          onChangeText={setLastName}
+        />
+        {formErrors.lastName && <Text style={styles.errorText}>{formErrors.lastName}</Text>}
+      </View>
 
       {/* Continue Button */}
       <TouchableOpacity
         style={styles.continueButton}
-        onPress={() => console.log("Navigate to Next Step")}
+        onPress={handleContinue}
+        disabled={!firstName.trim() || !lastName.trim()}
       >
         <Text style={styles.continueText}>CONTINUE</Text>
       </TouchableOpacity>
@@ -95,8 +126,11 @@ const styles = StyleSheet.create({
     color: "#010001",
     marginBottom: 20,
   },
-  input: {
+  inputContainer: {
     width: 312,
+    marginBottom: 15,
+  },
+  input: {
     height: 50,
     borderWidth: 1,
     borderColor: "#d9d9d9",
@@ -104,7 +138,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     fontSize: 16,
     color: "#010001",
-    marginBottom: 15,
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 5,
   },
   continueButton: {
     width: 312,
