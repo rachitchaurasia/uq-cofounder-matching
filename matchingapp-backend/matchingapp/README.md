@@ -76,3 +76,19 @@ created: 2015-02-02T06:48:25.648Z (4y)
 Decide on a name (alias) for your zone. The DNS name will look like: `<account>-<alias>.zones.eait.uq.edu.au`, <account> will be the student number
 <alias> will be the name.
 Now to create your zone run the command: `triton inst create --wait --name <alias> --network zones webproject z1-standard`
+Wait about 1-2 mins while it creates your zone and you will get confirmation when it's done. You can now log off or directly ssh into your Zone through moss/mango!
+
+## 2. Set up development environment on your zone
+### 1. SSH into your zone
+You can ssh directly into your zone with the UQ VPN active or ssh into moss/mango first and then ssh from there into your zone. Use the address `<account>-<alias>.zones.eait.uq.edu.au`.
+I like to ssh with vscode so I can navigate around the files easier. After you ssh into VScode it also comes with a handy terminal so therers no need to use PuTTY or the mac terminal.
+
+If you would like to do this then install the "Remote - SSH" extension from microsft by searching for it in the extension browser in VScode. After installing it enter the ssh address (\<account\>-<alias\>.zones.eait.uq.edu.au) follow the prompts. When you get to open .ssh/config then enter the following:
+```
+Host <account>-<alias>.zones.eait.uq.edu.au
+  HostName <account>-<alias>.zones.eait.uq.edu.au
+  User <account>
+```
+Replacing \<account\> and \<alias\> with your values. Then you can connect!
+
+### 2. More comming soon.
