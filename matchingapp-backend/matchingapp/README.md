@@ -73,8 +73,8 @@ phone: 12345
 updated: 2019-09-25T03:11:34.682Z (18w)
 created: 2015-02-02T06:48:25.648Z (4y)
 ```
-Decide on a name (alias) for your zone. The DNS name will look like: `<account>-<alias>.zones.eait.uq.edu.au`, <account> will be the student number
-<alias> will be the name.
+Decide on a name (alias) for your zone. The DNS name will look like: `<account>-<alias>.zones.eait.uq.edu.au`, <account\> will be the student number
+<alias\> will be the name.
 Now to create your zone run the command: `triton inst create --wait --name <alias> --network zones webproject z1-standard`
 Wait about 1-2 mins while it creates your zone and you will get confirmation when it's done. You can now log off or directly ssh into your Zone through moss/mango!
 
