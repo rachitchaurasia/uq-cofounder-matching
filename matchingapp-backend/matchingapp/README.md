@@ -177,8 +177,76 @@ Finally add /matchingapp to the end of the url like so `<account>-<alias>.uqclou
 Well done! you have successfully got the code running on your own personal uq cloud zone!
 
 To stop the server press Ctrl-c, if you want to close the tmux session just type `exit`.If you want to close the ssh connection to your zone on vscode just click the blue button in the bottom left corner. If you want to exit from the terminal just type `exit` again.
+## 6. Set up uq MySQL
+`sudo apt install libmysqlclient-dev -y`
 
+`sudo webprojctl enable mysql`
 
+You need to enbale php to use phpmyadmin (A GUI for MySQL).
 
+`sudo webprojctl enable php`
 
+Display your MySQL password.
 
+`sudo mdata-get mysql_pw` 
+
+Make a note of the password displayed; you will need it to access the MySQL database and enter into the Django settings.py file.
+
+To interact with MySQL, you must log in to the MySQL command-line interface. Use the following command, where -u is root. When prompted, enter the password you acquired in the previous step:
+
+`mysql -u root -p`
+
+After entering the correct password, you’ll be taken to the MySQL prompt, indicated by mysql>.
+
+At the MySQL prompt, you can create a new database for your project with the following command. Replace database_name with the name you choose for your database, such as cofoundermatching_db for our project:
+
+`CREATE DATABASE cofoundermatching_db;`
+
+`exit;`
+
+Now, update Django’s database settings.
+
+  1. Open your matchingapp/settings.py file in VSCode.
+  2. Locate the DATABASES dictionary and replace it with the following:
+
+```
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'cofoundermatching_db',
+        'USER': 'root',
+        'PASSWORD': '<yourmysqlpassword>',
+        'HOST': 'localhost',
+        'PORT': '3306',
+    }
+}
+```
+
+Replace 'yourpassword' with your actual MySQL password obtained from sudo mdata-get mysql_pw.
+
+Now activate your python virtual environment. after that type:
+
+`pip install mysqlclient`
+
+Then, run the initial migrations to create Django’s default tables:
+
+`python3.12 manage.py migrate`
+
+IMPORTANT: For our cofounder project there is no need to define our own Users table as Django already makes one for you.
+Django will even handle password hashing for you. If you'd like to see the structure of the table check out the next step.
+The name of the table is 'auth_user'.
+
+View Your Database in phpMyAdmin
+
+To visually inspect the database, open phpMyAdmin in your browser: https://YourZoneURL/phpmyadmin
+
+Select the resumebuilder_db database from the left panel.
+
+You should see Django’s default tables, such as:
+  - auth_user (stores user accounts)
+  - django_migrations (tracks applied migrations)
+  - django_content_type (used by Django’s ORM)
+
+Congratulations! Your Django project is now connected to a MySQL Database!
+## 7. Coming soon!
+How to use Django object relational mapper (ORM) to define your own tables. There is no need to create your own tables with SQL commands as Django already provides an abstraction for this. You'll see how Django automatically writes the correct SQL based on you defining the tables as objects in the Django framework files.
