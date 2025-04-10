@@ -5,6 +5,7 @@ import { RootStackParamList } from './types';
 import { SignInScreen } from '../screens/SignInScreen';
 import { NameScreen } from '../screens/NameScreen';
 import { Role } from '../screens/Role'; // Import the new Role component
+import { EmailSignInScreen } from '../screens/EmailSignInScreen'; // <-- Import the new screen
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -23,6 +24,10 @@ export const RootNavigator = () => {
         <Stack.Screen 
           name="SignIn" 
           component={SignInScreen}
+        />
+        <Stack.Screen 
+          name="EmailSignIn"
+          component={EmailSignInScreen}
         />
         <Stack.Screen 
           name="Name" 
