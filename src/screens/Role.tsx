@@ -1,63 +1,91 @@
 import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import vector5 from "../assets/back-button.png"; // Updated to PNG
+import CheckBox from 'expo-checkbox'; // Using expo-checkbox
 
-const { width } = Dimensions.get("window");
+const backIcon = require("../assets/back-button.png"); 
+
+// Define the roles
+const ROLES = ["CO-FOUNDER", "INVESTOR", "ENTREPRENEUR", "DEVELOPER"];
 
 export const Role = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [pressedButton, setPressedButton] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(ROLES[0]); // Default to CO-FOUNDER selected
+  const [showRoleOnProfile, setShowRoleOnProfile] = useState<boolean>(false);
+
+  const handleContinue = () => {
+    // Add navigation logic or data saving here based on selectedRole and showRoleOnProfile
+    console.log("Selected Role:", selectedRole);
+    console.log("Show on Profile:", showRoleOnProfile);
+    // navigation.navigate('NextScreen'); // Navigate to the next screen in the flow
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentContainer}>
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.navigate("Name")}
-        >
-          <Image source={vector5} style={styles.vectorImage} />
-        </TouchableOpacity>
-
-        {/* Progress Bar */}
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressFill} />
-        </View>
-
-        <Text style={styles.mainText}>
-          I am a
-        </Text>
-
-        <View style={styles.roleButtonsContainer}>
-          {["CO-FOUNDER", "INVESTOR", "ENTREPRENEUR"].map((role) => (
-            <TouchableOpacity
-              key={role}
-              style={[styles.roleButton, pressedButton === role && styles.roleButtonPressed]}
-              onPressIn={() => setPressedButton(role)}
-              onPressOut={() => setPressedButton(null)}
-              onPress={() => console.log(`Selected: ${role}`)}
-            >
-              <Text style={styles.roleButtonText}>{role}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.genderToggle}>
-          <Text style={styles.genderText}>Show my gender on my profile</Text>
-          <View style={styles.toggleSwitch} />
-        </View>
-
-        <TouchableOpacity style={styles.continueButton} onPress={() => console.log("Navigate to Next Step")}>
-          <Text style={styles.continueText}>CONTINUE</Text>
-        </TouchableOpacity>
-
-        <View style={styles.helpIcon}>
-          <Text style={styles.helpText}>?</Text>
-        </View>
+      {/* Progress Bar - Styled like NameScreen */}
+      <View style={styles.progressBarContainer}>
+        <View style={styles.progressFill} />
       </View>
+
+      {/* Back Button - Positioned like the cross in NameScreen */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Image source={backIcon} style={styles.backIcon} />
+      </TouchableOpacity>
+
+      {/* Title */}
+      <Text style={styles.title}>I am a ....</Text>
+
+      {/* Role Buttons */}
+      <View style={styles.roleButtonsContainer}>
+        {ROLES.map((role) => (
+          <TouchableOpacity
+            key={role}
+            style={[
+              styles.roleButton,
+              selectedRole === role ? styles.roleButtonSelected : styles.roleButtonUnselected,
+            ]}
+            onPress={() => setSelectedRole(role)}
+          >
+            <Text style={[
+              styles.roleButtonText,
+              selectedRole === role ? styles.roleButtonTextSelected : styles.roleButtonTextUnselected,
+            ]}>{role}</Text>
+            
+            {/* Help Icon - Only appears next to the first button */}
+            {role === ROLES[0] && (
+              <View style={styles.helpIconContainer}>
+                <TouchableOpacity style={styles.helpIcon}>
+                  <Text style={styles.helpText}>?</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Checkbox */}
+      <View style={styles.checkboxContainer}>
+        <CheckBox
+          value={showRoleOnProfile}
+          onValueChange={setShowRoleOnProfile}
+          style={styles.checkbox}
+          color={showRoleOnProfile ? '#A702C8' : undefined} // Purple when checked
+        />
+        <Text style={styles.checkboxLabel}>Show my role on my profile</Text>
+      </View>
+
+      {/* Continue Button */}
+      <TouchableOpacity 
+        style={styles.continueButton} 
+        onPress={handleContinue}
+      >
+        <Text style={styles.continueText}>CONTINUE</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -66,22 +94,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
-    justifyContent: "center",
     alignItems: "center",
-  },
-  contentContainer: {
-    width: 393,
-    height: 850,
-    position: "relative",
-  },
-  backButton: {
-    position: "absolute",
-    top: 60,
-    left: 20,
-  },
-  vectorImage: {
-    width: 24,
-    height: 24,
+    justifyContent: "center"
   },
   progressBarContainer: {
     position: "absolute",
@@ -91,105 +105,110 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9d9d9",
   },
   progressFill: {
-    width: "50%", // Adjust as needed
+    width: "50%", // 50% for second screen in the flow (as NameScreen was 25%)
     height: "100%",
     backgroundColor: "#a702c8",
   },
-  mainText: {
+  backButton: {
     position: "absolute",
-    top: 82,
-    left: 82,
-    fontFamily: "Inter-SemiBold",
+    top: 60,
+    left: 20,
+    padding: 5,
+  },
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  title: {
+    fontSize: 34,
     fontWeight: "600",
-    fontSize: 38.3,
-    lineHeight: 53.6,
-    letterSpacing: 1.91,
+    textAlign: "center",
     color: "#010001",
+    marginBottom: 30,
   },
   roleButtonsContainer: {
-    position: "absolute",
-    top: 226,
-    left: 10,
-    width: 312,
+    width: 312, // Matching input width from NameScreen
+    marginBottom: 15,
   },
   roleButton: {
     width: "100%",
-    height: 50,
-    borderRadius: 67.18,
-    borderWidth: 2,
-    borderColor: "#C6C5C7",
-    marginBottom: 20,
+    height: 50, // Match input height from NameScreen
+    borderRadius: 25,
+    marginBottom: 15,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    position: "relative", // For absolute positioning of help icon
   },
-  roleButtonPressed: {
-    backgroundColor: "#f0f0f0",
+  roleButtonUnselected: {
+    borderColor: "#d9d9d9", // Match border color from NameScreen inputs
+    backgroundColor: 'white',
+  },
+  roleButtonSelected: {
+    borderColor: "#a702c8", // Match purple color
+    backgroundColor: 'rgba(167, 2, 200, 0.05)',
   },
   roleButtonText: {
-    fontFamily: "Inter-SemiBold",
+    fontSize: 16,
     fontWeight: "600",
-    fontSize: 18.1,
-    color: "#C6C5C7",
   },
-  genderToggle: {
-    position: "absolute",
-    top: 694,
-    left: 94,
-    flexDirection: "row",
-    alignItems: "center",
+  roleButtonTextUnselected: {
+    color: "#828693", // Matching placeholder color from NameScreen
   },
-  genderText: {
-    fontFamily: "Inter-Regular",
-    fontSize: 13,
-    color: "#1E1E24",
-    letterSpacing: 0.58,
-    lineHeight: 17.1,
+  roleButtonTextSelected: {
+    color: "#a702c8",
   },
-  toggleSwitch: {
-    width: 20,
-    height: 20,
-    borderRadius: 3,
-    border: 1,
-    borderColor: "black",
-    marginLeft: 10,
-  },
-  continueButton: {
-    position: "absolute",
-    bottom: 40,
-    width: 312,
-    height: 50,
-    backgroundColor: "#A702C8",
-    borderRadius: 67.18,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  continueText: {
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    fontSize: 18.1,
-    color: "white",
+  helpIconContainer: {
+    position: 'absolute',
+    right: 7,
+    top: '50%',
+    transform: [{ translateY: -53 }],
   },
   helpIcon: {
-    position: "absolute",
-    top: 189,
-    right: 20,
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#C6C5C7",
+    borderColor: "#D3D3D3",
   },
   helpText: {
-    fontSize: 18.1,
-    fontWeight: "600",
-    color: "black",
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#808080",
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 312, // Matching width
+    marginBottom: 15,
+    marginTop: 5,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    marginRight: 10,
+    borderRadius: 3,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: "#010001",
+  },
+  continueButton: {
+    width: 312, // Matching width from NameScreen
+    height: 50, // Matching height from NameScreen
+    backgroundColor: "#a702c8",
+    borderRadius: 67, // Matching radius from NameScreen
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  continueText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });
