@@ -19,7 +19,7 @@ export const Role = () => {
     // Add navigation logic or data saving here based on selectedRole and showRoleOnProfile
     console.log("Selected Role:", selectedRole);
     console.log("Show on Profile:", showRoleOnProfile);
-    // navigation.navigate('NextScreen'); // Navigate to the next screen in the flow
+    navigation.navigate('Interests'); // Navigate to the Interests screen
   };
 
   return (
