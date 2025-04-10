@@ -4,8 +4,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 import { SignInScreen } from '../screens/SignInScreen';
 import { NameScreen } from '../screens/NameScreen';
-import { Role } from '../screens/Role'; // Import the new Role component
-import { EmailSignInScreen } from '../screens/EmailSignInScreen'; // <-- Import the new screen
+import { Role } from '../screens/Role';
+import { EmailSignInScreen } from '../screens/EmailSignInScreen';
+import { Interests } from '../screens/Interests';
+import { Expertise } from '../screens/Expertise';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -35,7 +37,15 @@ export const RootNavigator = () => {
         />
         <Stack.Screen 
           name="Role" 
-          component={Role} // Add the new Role screen
+          component={Role}
+        />
+        <Stack.Screen 
+          name="Interests"
+          component={Interests}
+        />
+        <Stack.Screen 
+          name="Expertise"
+          component={Expertise}
         />
       </Stack.Navigator>
     </NavigationContainer>

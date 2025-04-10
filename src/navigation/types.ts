@@ -4,4 +4,7 @@ export type RootStackParamList = {
   Name: undefined;
   Role: undefined; // Add Role screen
   TroubleSignIn: undefined;
+  Welcome: undefined;
+  Interests: undefined; // Add the new Interests screen here
+  Expertise: undefined; // Add the new Expertise screen here
 };
