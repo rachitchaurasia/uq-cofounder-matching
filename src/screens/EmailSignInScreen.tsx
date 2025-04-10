@@ -3,9 +3,9 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, TextInput, Alert } fro
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types'; // Assuming your types are here
+import { RootStackParamList } from '../navigation/types'; 
 
-type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>; // Use 'EmailSignIn' or your chosen name
+type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>;
 
 export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState<string>('');
@@ -32,7 +32,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     // --- Placeholder for actual sign-in logic ---
-    // Here you would typically call your authentication service
+    // Here the backend team should typically call the authentication service
     console.log('Attempting Sign In with:', email, password);
     // If sign-in fails from the backend, you would setError here
     // e.g., setError('Invalid email or password.');
@@ -54,7 +54,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.goBack()}
         >
           <Image
-            source={require('../assets/back-button.png')} // Make sure you have this asset
+            source={require('../assets/back-button.png')}
             style={styles.backIcon}
           />
         </TouchableOpacity>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   signInButton: {
-    backgroundColor: '#2B95D6', // Blue background like the reference
+    backgroundColor: '#2B95D6', // Blue background like the design has from figma
     width: '100%',
     height: 50,
     borderRadius: 25,

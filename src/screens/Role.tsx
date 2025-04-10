@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import CheckBox from 'expo-checkbox'; // Using expo-checkbox
 
-const backIcon = require("../assets/back-button.png"); // Ensure you have this asset
+const backIcon = require("../assets/back-button.png"); 
 
 // Define the roles
 const ROLES = ["CO-FOUNDER", "INVESTOR", "ENTREPRENEUR", "DEVELOPER"];
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9d9d9",
   },
   progressFill: {
-    width: "50%", // 50% for second screen in the flow (assuming NameScreen was 25%)
+    width: "50%", // 50% for second screen in the flow (as NameScreen was 25%)
     height: "100%",
     backgroundColor: "#a702c8",
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   roleButtonsContainer: {
-    width: 312, // Match input width from NameScreen
+    width: 312, // Matching input width from NameScreen
     marginBottom: 15,
   },
   roleButton: {
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   roleButtonTextUnselected: {
-    color: "#828693", // Match placeholder color from NameScreen
+    color: "#828693", // Matching placeholder color from NameScreen
   },
   roleButtonTextSelected: {
     color: "#a702c8",
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "center",
-    width: 312, // Match width
+    width: 312, // Matching width
     marginBottom: 15,
     marginTop: 5,
   },
@@ -198,10 +198,10 @@ const styles = StyleSheet.create({
     color: "#010001",
   },
   continueButton: {
-    width: 312, // Match width from NameScreen
-    height: 50, // Match height from NameScreen
+    width: 312, // Matching width from NameScreen
+    height: 50, // Matching height from NameScreen
     backgroundColor: "#a702c8",
-    borderRadius: 67, // Match radius from NameScreen
+    borderRadius: 67, // Matching radius from NameScreen
     alignItems: "center",
     justifyContent: "center",
     marginTop: 20,
