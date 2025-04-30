@@ -7,58 +7,57 @@ import { RootStackParamList } from "../navigation/types"; // Adjust path if need
 const backIcon = require("../assets/back-button.png"); // Assuming same back icon
 
 // Initial list based on the image
-const INITIAL_LOOKING_FOR = [
-  "Job Opportunities", "Learning", "feedback on my product", "mentoring others",
-  "Looking for a mentor", "founder role", "designer", "developer", "seed funding",
-  "meet angel investors", "Advisor", "Raising soon, just networking", "Beta Testers"
+const INITIAL_OFFERS = [
+    "Talent referrals", "Hiring support", "financial guidance", "Launch support",
+    "Technical expertise", "Marketing", "Collab on side projects", "UX", "investor network"
 ];
 
 // Pre-selected items based on the image
-const PRE_SELECTED_LOOKING_FOR = ["meet angel investors", "Beta Testers"];
+const PRE_SELECTED_OFFERS = ["Collab on side projects", "investor network"];
 
-export const LookingScreen = () => { // Renamed component
+export const OfferScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  // State for all available items
-  const [availableItems, setAvailableItems] = useState<string[]>(INITIAL_LOOKING_FOR);
-  // State for selected items
-  const [selectedItems, setSelectedItems] = useState<string[]>(PRE_SELECTED_LOOKING_FOR);
+  // State for all available offers
+  const [availableOffers, setAvailableOffers] = useState<string[]>(INITIAL_OFFERS);
+  // State for selected offers
+  const [selectedOffers, setSelectedOffers] = useState<string[]>(PRE_SELECTED_OFFERS);
   // State for the input field text
-  const [newItemText, setNewItemText] = useState<string>("");
+  const [newOfferText, setNewOfferText] = useState<string>("");
   // State to control the visibility/mode of the input area
-  const [isAddingItem, setIsAddingItem] = useState<boolean>(false);
+  const [isAddingOffer, setIsAddingOffer] = useState<boolean>(false);
 
-  const toggleItem = (item: string) => {
-    setSelectedItems((prevSelected) => {
-      const newSelected = prevSelected.includes(item)
-        ? prevSelected.filter((i) => i !== item)
-        : [...prevSelected, item];
+  const toggleOffer = (offer: string) => {
+    setSelectedOffers((prevSelected) => {
+      const newSelected = prevSelected.includes(offer)
+        ? prevSelected.filter((i) => i !== offer)
+        : [...prevSelected, offer];
       return newSelected;
     });
   };
 
-  const handleAddItem = () => {
-    const trimmedItem = newItemText.trim();
-    if (trimmedItem && !availableItems.map(i => i.toLowerCase()).includes(trimmedItem.toLowerCase())) {
-      setAvailableItems(prevAvailable => [...prevAvailable, trimmedItem]);
-      toggleItem(trimmedItem); // Optionally select the newly added item
+  const handleAddOffer = () => {
+    const trimmedOffer = newOfferText.trim();
+    if (trimmedOffer && !availableOffers.map(i => i.toLowerCase()).includes(trimmedOffer.toLowerCase())) {
+      setAvailableOffers(prevAvailable => [...prevAvailable, trimmedOffer]);
+      toggleOffer(trimmedOffer);
     }
-    setNewItemText("");
-    setIsAddingItem(false);
+    setNewOfferText("");
+    setIsAddingOffer(false);
     Keyboard.dismiss();
   };
 
   const handleContinue = () => {
-    console.log("Selected Looking For:", selectedItems);
-    console.log("Available Looking For:", availableItems);
-    // Navigate to the Offer screen
-    navigation.navigate('Offer'); // Changed target
+    console.log("Selected Offers:", selectedOffers);
+    console.log("Available Offers:", availableOffers);
+    navigation.navigate('Welcome');
+    console.log("Navigate to Welcome screen");
   };
 
   const handleSkip = () => {
-    console.log("Skipped Looking For selection");
-    // Navigate to the Offer screen
-    navigation.navigate('Offer'); // Changed target
+    console.log("Skipped Offer selection");
+    navigation.navigate('Welcome');
+    console.log("Navigate to Welcome screen");
   };
 
   const handleGoBack = () => {
@@ -75,7 +74,7 @@ export const LookingScreen = () => { // Renamed component
           </View>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={handleGoBack} // Use custom back handler if needed
+            onPress={handleGoBack}
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
@@ -94,59 +93,57 @@ export const LookingScreen = () => { // Renamed component
           keyboardShouldPersistTaps="handled"
         >
           {/* Title */}
-          <Text style={styles.title}>I am looking for?</Text> 
+          <Text style={styles.title}>What can you offer?</Text>
 
-          {/* --- Add Item Input Area --- */}
-          {!isAddingItem ? (
-            <View style={styles.addItemInputContainer}>
+          {/* --- Add Offer Input Area --- */}
+          {!isAddingOffer ? (
+            <View style={styles.addOfferInputContainer}>
               <TextInput
-                style={styles.addItemInput}
-                placeholder="I AM LOOKING FOR..." // Updated placeholder
+                style={styles.addOfferInput}
+                placeholder="I CAN OFFER..."
                 placeholderTextColor="#B0B0B0"
-                onFocus={() => setIsAddingItem(true)} 
-                value={newItemText}
-                onChangeText={setNewItemText}
+                onFocus={() => setIsAddingOffer(true)}
+                value={newOfferText}
+                onChangeText={setNewOfferText}
               />
-               {/* Button integrated with input field */}
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={[styles.addItemInputContainer, styles.addItemInputContainerActive]}>
+            <View style={[styles.addOfferInputContainer, styles.addOfferInputContainerActive]}>
               <TextInput
-                style={styles.addItemInput}
-                placeholder="I AM LOOKING FOR..."
+                style={styles.addOfferInput}
+                placeholder="I CAN OFFER..."
                 placeholderTextColor="#B0B0B0"
-                value={newItemText}
-                onChangeText={setNewItemText}
-                onSubmitEditing={handleAddItem}
+                value={newOfferText}
+                onChangeText={setNewOfferText}
+                onSubmitEditing={handleAddOffer}
                 autoFocus={true}
               />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* --- Item Chips --- */}
-          {/* Comment out this block */}
-          <View style={styles.itemsContainer}>
-            {availableItems.map((item) => {
-                const isSelected = selectedItems.includes(item);
-            return (
+          {/* --- Offer Chips --- */}
+          <View style={styles.offersContainer}> {/* Renamed style */}
+            {availableOffers.map((offer) => {
+              const isSelected = selectedOffers.includes(offer);
+              return (
                 <TouchableOpacity
-                  key={item}
+                  key={offer}
                   style={[
-                    styles.itemChip,
-                    isSelected ? styles.itemChipSelected : styles.itemChipUnselected,
-                    ]}
-                  onPress={() => toggleItem(item)}
+                    styles.offerChip, // Renamed style
+                    isSelected ? styles.offerChipSelected : styles.offerChipUnselected,
+                  ]}
+                  onPress={() => toggleOffer(offer)}
                 >
                   <Text style={[
-                    styles.itemText,
-                    isSelected ? styles.itemTextSelected : styles.itemTextUnselected,
-                  ]}>{item}</Text>
+                    styles.offerText, // Renamed style
+                    isSelected ? styles.offerTextSelected : styles.offerTextUnselected,
+                  ]}>{offer}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -167,7 +164,7 @@ export const LookingScreen = () => { // Renamed component
   );
 };
 
-// --- Styles --- (Adapted from Interests.tsx/WorkingScreen.tsx)
+// --- Styles --- (Adapted from LookingScreen.tsx)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -191,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9d9d9",
   },
   progressFill: {
-    width: "100%", // Progress complete (or adjust if there are more steps)
+    width: "100%", // Assuming this is the last step
     height: "100%",
     backgroundColor: "#a702c8",
   },
@@ -207,7 +204,7 @@ const styles = StyleSheet.create({
     height: 24,
     resizeMode: 'contain',
   },
-  skipButton: { // Keep Skip button
+  skipButton: {
       position: "absolute",
       top: 60,
       right: 20,
@@ -226,61 +223,60 @@ const styles = StyleSheet.create({
   scrollContent: {
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 40, // Increase padding to push content below header
+    paddingTop: 40,
     paddingBottom: 20,
   },
   title: {
     fontSize: 34,
     fontWeight: "bold",
     color: "#010001",
-    marginBottom: 30, // Increased space after title
+    marginBottom: 30,
     alignSelf: 'flex-start',
   },
-  // Removed Subtitle style
-  // Input Area Styles - Modified to look like the reference image
-  addItemInputContainer: {
+  // Input Area Styles
+  addOfferInputContainer: { // Renamed
     flexDirection: 'row',
     width: '100%',
     height: 50,
-    marginBottom: 25, // Increased space after input
+    marginBottom: 25,
     alignItems: 'center',
-    backgroundColor: '#F0F0F0', // Light grey background
-    borderColor: '#E0E0E0', // Light grey border
+    backgroundColor: '#F0F0F0',
+    borderColor: '#E0E0E0',
     borderWidth: 1,
-    borderRadius: 25, // Rounded corners
-    paddingLeft: 20, // Indent placeholder text
-    paddingRight: 10, // Space for Add button
+    borderRadius: 25,
+    paddingLeft: 20,
+    paddingRight: 10,
   },
-  addItemInputContainerActive: { // Optional style for when focused
+  addOfferInputContainerActive: { // Renamed
       borderColor: '#a702c8',
       backgroundColor: 'white',
   },
-  addItemInput: {
+  addOfferInput: { // Renamed
     flex: 1,
     fontSize: 16,
-    color: '#010001', // Color for typed text
+    color: '#010001',
     fontWeight: '500',
   },
-  addButton: { // Style for the integrated Add button
+  addButton: {
     paddingVertical: 5,
     paddingHorizontal: 15,
-    backgroundColor: '#E8E8E8', // Slightly darker grey for button
+    backgroundColor: '#E8E8E8',
     borderRadius: 15,
   },
   addButtonText: {
-    color: '#A0A0A0', // Muted text color for Add button
+    color: '#A0A0A0',
     fontWeight: 'bold',
     fontSize: 14,
   },
-  // Item Chips styles
-  itemsContainer: { // Renamed
+  // Offer Chips styles
+  offersContainer: { // Renamed
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
     width: '100%',
-    marginBottom: 'auto', // Push chips up and footer down
+    marginBottom: 'auto',
   },
-  itemChip: { // Renamed
+  offerChip: { // Renamed
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 15,
@@ -288,25 +284,24 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
-  itemChipUnselected: { // Renamed
+  offerChipUnselected: { // Renamed
     backgroundColor: "white",
     borderColor: "#E0E0E0",
   },
-  itemChipSelected: { // Renamed
+  offerChipSelected: { // Renamed
     backgroundColor: "white",
     borderColor: "#a702c8",
   },
-  itemText: { // Renamed
+  offerText: { // Renamed
     fontSize: 14,
     fontWeight: "500",
   },
-  itemTextUnselected: { // Renamed
+  offerTextUnselected: { // Renamed
     color: "#828693",
   },
-  itemTextSelected: { // Renamed
+  offerTextSelected: { // Renamed
     color: "#a702c8",
   },
-  // Removed Add Later button styles
   footer: {
       paddingVertical: 20,
       paddingHorizontal: 20,

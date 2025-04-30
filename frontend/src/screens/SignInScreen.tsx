@@ -16,15 +16,6 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Image
-            source={require('../assets/back-button.png')}
-            style={styles.backIcon}
-          />
-        </TouchableOpacity>
 
         <View style={styles.content}>
           <Text style={styles.title}>CO-FOUNDER MATCHER</Text>
@@ -77,14 +68,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  backButton: {
-    padding: 20,
-  },
-  backIcon: {
-    width: 24,
-    height: 24,
-    tintColor: 'white',
   },
   content: {
     flex: 1,
