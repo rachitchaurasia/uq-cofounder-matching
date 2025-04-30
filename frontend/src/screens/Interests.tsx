@@ -8,14 +8,14 @@ const backIcon = require("../assets/back-button.png");
 
 // Initial interests list - this might come from a configuration or API later
 const INITIAL_INTERESTS = [
-  "AL", "Machine Learning", "Healthcare", "Climate change", "Energy",
-  "Heavy Metal", "House Parties", "Gin Tonic", "Gymnastics", "Hapkido",
+  "AI", "Machine Learning", "Healthcare", "Climate change", "Energy",
+  "Heavy Metal", "House Parties", "Gin Tonic", "Gymnastics", "Cloud",
   "Hot Yoga", "Meditation", "Spotify", "Sushi", "Hockey", "Basketball",
   "Slam Poetry", "Home Workout", "Theater", "Cafe Hopping", "Aquarium", "Sneakers"
 ];
 
 // Pre-selected interests based on the image - for initial state only
-const PRE_SELECTED = ["Hockey", "Home Workout"];
+const PRE_SELECTED = ["AI", "Meditation"];
 
 // Store component state outside if necessary, but usually useState is fine for screen state persistence within stack navigation
 // let persistentAvailableInterests = [...INITIAL_INTERESTS];
@@ -83,14 +83,14 @@ export const Interests = () => {
   const handleContinue = () => {
     console.log("Selected Interests:", selectedInterests);
     console.log("Available Interests:", availableInterests); // Log available ones too
-    // Navigate to the Expertise screen
-    navigation.navigate('Expertise'); // Pass data if needed: { interests: selectedInterests }
+    // Navigate to the Looking screen
+    navigation.navigate('Looking'); // Pass data if needed: { interests: selectedInterests }
   };
 
   const handleSkip = () => {
     console.log("Skipped Interests selection");
     // TODO: Navigate to the next screen
-    navigation.navigate('Expertise');
+    navigation.navigate('Looking');
   };
 
   const handleGoBack = () => {

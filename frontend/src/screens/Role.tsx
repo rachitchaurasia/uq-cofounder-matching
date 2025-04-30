@@ -5,32 +5,44 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import CheckBox from 'expo-checkbox'; // Using expo-checkbox
 
-const backIcon = require("../assets/back-button.png"); 
+const backIcon = require("../assets/back-button.png");
 
-// Define the roles
-const ROLES = ["CO-FOUNDER", "INVESTOR", "ENTREPRENEUR", "DEVELOPER"];
+// Define the roles and their emojis
+const ROLES_WITH_EMOJIS = [
+  { name: "CO-FOUNDER", emoji: "🧱" },
+  { name: "INVESTOR", emoji: "💼" },
+  { name: "ENTREPRENEUR", emoji: "🧠" },
+  { name: "DEVELOPER", emoji: "👨‍💻" }, // Using person coder emoji
+  { name: "STARTUP", emoji: "🚀" }, // Added STARTUP
+];
 
 export const Role = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [selectedRole, setSelectedRole] = useState<string | null>(ROLES[0]); // Default to CO-FOUNDER selected
+  // Default to first role's name
+  const [selectedRole, setSelectedRole] = useState<string | null>(ROLES_WITH_EMOJIS[0].name);
   const [showRoleOnProfile, setShowRoleOnProfile] = useState<boolean>(false);
 
   const handleContinue = () => {
-    // Add navigation logic or data saving here based on selectedRole and showRoleOnProfile
     console.log("Selected Role:", selectedRole);
     console.log("Show on Profile:", showRoleOnProfile);
-    navigation.navigate('Interests'); // Navigate to the Interests screen
+    if (selectedRole === "STARTUP") {
+      // Navigate directly to the 'Working' screen if STARTUP is selected
+      navigation.navigate('Working'); // Ensure 'Working' is defined in RootStackParamList later
+    } else {
+      // Otherwise, navigate to the 'Expertise' screen
+      navigation.navigate('Expertise');
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Progress Bar - Styled like NameScreen */}
+      {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
         <View style={styles.progressFill} />
       </View>
 
-      {/* Back Button - Positioned like the cross in NameScreen */}
-      <TouchableOpacity 
+      {/* Back Button */}
+      <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
@@ -42,22 +54,27 @@ export const Role = () => {
 
       {/* Role Buttons */}
       <View style={styles.roleButtonsContainer}>
-        {ROLES.map((role) => (
+        {ROLES_WITH_EMOJIS.map(({ name, emoji }) => ( // Destructure name and emoji
           <TouchableOpacity
-            key={role}
+            key={name}
             style={[
               styles.roleButton,
-              selectedRole === role ? styles.roleButtonSelected : styles.roleButtonUnselected,
+              selectedRole === name ? styles.roleButtonSelected : styles.roleButtonUnselected,
             ]}
-            onPress={() => setSelectedRole(role)}
+            onPress={() => setSelectedRole(name)}
           >
-            <Text style={[
-              styles.roleButtonText,
-              selectedRole === role ? styles.roleButtonTextSelected : styles.roleButtonTextUnselected,
-            ]}>{role}</Text>
-            
-            {/* Help Icon - Only appears next to the first button */}
-            {role === ROLES[0] && (
+            {/* Container for Text and Emoji */}
+            <View style={styles.roleButtonContent}>
+               <Text style={[
+                styles.roleButtonText,
+                selectedRole === name ? styles.roleButtonTextSelected : styles.roleButtonTextUnselected,
+               ]}>{name}</Text>
+               {/* Emoji */}
+               <Text style={styles.emojiText}>{emoji}</Text>
+            </View>
+
+            {/* Help Icon */}
+            {name === ROLES_WITH_EMOJIS[0].name && (
               <View style={styles.helpIconContainer}>
                 <TouchableOpacity style={styles.helpIcon}>
                   <Text style={styles.helpText}>?</Text>
@@ -74,14 +91,14 @@ export const Role = () => {
           value={showRoleOnProfile}
           onValueChange={setShowRoleOnProfile}
           style={styles.checkbox}
-          color={showRoleOnProfile ? '#A702C8' : undefined} // Purple when checked
+          color={showRoleOnProfile ? '#A702C8' : undefined}
         />
         <Text style={styles.checkboxLabel}>Show my role on my profile</Text>
       </View>
 
       {/* Continue Button */}
-      <TouchableOpacity 
-        style={styles.continueButton} 
+      <TouchableOpacity
+        style={styles.continueButton}
         onPress={handleContinue}
       >
         <Text style={styles.continueText}>CONTINUE</Text>
@@ -105,7 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9d9d9",
   },
   progressFill: {
-    width: "50%", // 50% for second screen in the flow (as NameScreen was 25%)
+    width: "50%",
     height: "100%",
     backgroundColor: "#a702c8",
   },
@@ -128,33 +145,43 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   roleButtonsContainer: {
-    width: 312, // Matching input width from NameScreen
+    width: 312,
     marginBottom: 15,
   },
   roleButton: {
     width: "100%",
-    height: 50, // Match input height from NameScreen
+    height: 50,
     borderRadius: 25,
     marginBottom: 15,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: "center", // Center content vertically
+    alignItems: "center", // Center content horizontally
     borderWidth: 1,
-    position: "relative", // For absolute positioning of help icon
+    position: "relative",
+  },
+  // New style for the inner View containing text and emoji
+  roleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   roleButtonUnselected: {
-    borderColor: "#d9d9d9", // Match border color from NameScreen inputs
+    borderColor: "#d9d9d9",
     backgroundColor: 'white',
   },
   roleButtonSelected: {
-    borderColor: "#a702c8", // Match purple color
+    borderColor: "#a702c8",
     backgroundColor: 'rgba(167, 2, 200, 0.05)',
   },
   roleButtonText: {
     fontSize: 16,
     fontWeight: "600",
+    marginRight: 8, // Add space between text and emoji
+  },
+  // New style for the emoji text
+  emojiText: {
+    fontSize: 16, // Match text size or adjust as needed
   },
   roleButtonTextUnselected: {
-    color: "#828693", // Matching placeholder color from NameScreen
+    color: "#828693",
   },
   roleButtonTextSelected: {
     color: "#a702c8",
@@ -163,7 +190,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 7,
     top: '50%',
-    transform: [{ translateY: -53 }],
+    transform: [{ translateY: -53 }], // Adjust this value if vertical alignment is off
   },
   helpIcon: {
     width: 20,
@@ -183,7 +210,7 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "center",
-    width: 312, // Matching width
+    width: 312,
     marginBottom: 15,
     marginTop: 5,
   },
@@ -198,10 +225,10 @@ const styles = StyleSheet.create({
     color: "#010001",
   },
   continueButton: {
-    width: 312, // Matching width from NameScreen
-    height: 50, // Matching height from NameScreen
+    width: 312,
+    height: 50,
     backgroundColor: "#a702c8",
-    borderRadius: 67, // Matching radius from NameScreen
+    borderRadius: 67,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 20,

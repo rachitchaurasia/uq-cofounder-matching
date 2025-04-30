@@ -7,4 +7,6 @@ export type RootStackParamList = {
   Welcome: undefined;
   Interests: undefined; // Add the new Interests screen here
   Expertise: undefined; // Add the new Expertise screen here
+  Working: undefined;
+  Looking: undefined;
 };
