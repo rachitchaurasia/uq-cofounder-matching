@@ -162,7 +162,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone git@github.com:rachitchaurasia/uq-cofounder-matching.git
-cd uq-cofounder-matching
+cd uq-cofounder-matching/frontend
 ```
 
 ### 2. Install Dependencies
@@ -200,7 +200,7 @@ This will start the Metro bundler and show a QR code in your terminal.
 ## Project Structure
 
 ```
-uq-cofounder-matching/
+uq-cofounder-matching/frontend
 ├── src/
 │   ├── assets/         # Images, fonts, and other static files
 │   ├── navigation/     # Navigation configuration
