@@ -11,6 +11,7 @@ import { Expertise } from '../screens/Expertise';
 import { WorkingScreen } from '../screens/WorkingScreen';
 import { LookingScreen } from '../screens/LookingScreen';
 import { OfferScreen } from '../screens/OfferScreen';
+import { WelcomeScreen } from '../screens/WelcomeScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -61,7 +62,11 @@ export const RootNavigator = () => {
         <Stack.Screen 
         name="Offer" 
         component={OfferScreen} 
-        /> 
+        />
+        <Stack.Screen 
+        name="Welcome" 
+        component={WelcomeScreen} 
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

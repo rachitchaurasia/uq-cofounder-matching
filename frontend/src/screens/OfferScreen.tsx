@@ -50,14 +50,14 @@ export const OfferScreen = () => {
   const handleContinue = () => {
     console.log("Selected Offers:", selectedOffers);
     console.log("Available Offers:", availableOffers);
-    // navigation.navigate('Welcome');
-    console.log("Navigate to final screen (implement navigation)");
+    navigation.navigate('Welcome');
+    console.log("Navigate to Welcome screen");
   };
 
   const handleSkip = () => {
     console.log("Skipped Offer selection");
-    // navigation.navigate('Welcome');
-     console.log("Navigate to final screen (implement navigation)");
+    navigation.navigate('Welcome');
+    console.log("Navigate to Welcome screen");
   };
 
   const handleGoBack = () => {
