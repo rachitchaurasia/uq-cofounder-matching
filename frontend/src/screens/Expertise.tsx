@@ -2,15 +2,14 @@ import React, { useState, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/types"; // Adjust path if needed
+import { RootStackParamList } from "../navigation/types";
 
-const backIcon = require("../assets/back-button.png"); // Assuming same back icon
+const backIcon = require("../assets/back-button.png");
 
 // Initial skills list based on the image
 const INITIAL_SKILLS = [
     "Marketing", "Design", "Business strategy", "Product development",
-    "Gin Tonic", "Gymnastics", // Note: These seem out of place, maybe placeholders? Keep for now.
-    "SEO", "3D Modeling", "Accountant", "Corporate Partnerships",
+    "SCRUM", "Gymnastics", "SEO", "3D Modeling", "Accountant", "Corporate Partnerships",
     "Sales Operations", "Financial Planning", "DevOps", "Just Here to Connect!"
 ];
 
@@ -101,11 +100,11 @@ export const Expertise = () => {
         {/* --- Header Elements --- */}
         <View style={styles.header}>
           <View style={styles.progressBarContainer}>
-            <View style={styles.progressFill} /> {/* Adjusted width */}
+            <View style={styles.progressFill} />
           </View>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={handleGoBack}
+            onPress={handleGoBack} // Use custom back handler if needed
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
@@ -129,18 +128,18 @@ export const Expertise = () => {
           <Text style={styles.subtitle}>Let everyone know what you're skilled in by adding it to your profile.</Text>
 
           {/* --- Add Skill Input Area --- */}
-          {!isAddingSkill ? (
+           {!isAddingSkill ? (
             <TouchableOpacity
-              style={styles.addSkillsButton} // Renamed style
+              style={styles.addSkillsButton}
               onPress={() => setIsAddingSkill(true)}
             >
-              <Text style={styles.addSkillsText}>ADD YOUR SKILLS HERE</Text> {/* Updated text */}
+              <Text style={styles.addSkillsText}>ADD YOUR SKILLS HERE</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.addSkillInputContainer}>
               <TextInput
                 style={styles.addSkillInput}
-                placeholder="Type your skill..." // Updated placeholder
+                placeholder="Type your skill..."
                 placeholderTextColor="#B0B0B0"
                 value={newSkillText}
                 onChangeText={setNewSkillText}
@@ -154,20 +153,20 @@ export const Expertise = () => {
           )}
 
           {/* --- Skill Chips --- */}
-          <View style={styles.skillsContainer}> {/* Renamed style */}
+           <View style={styles.skillsContainer}>
             {availableSkills.map((skill) => {
               const isSelected = selectedSkills.includes(skill);
               return (
                 <TouchableOpacity
                   key={skill}
                   style={[
-                    styles.skillChip, // Renamed style
+                    styles.skillChip,
                     isSelected ? styles.skillChipSelected : styles.skillChipUnselected,
                   ]}
                   onPress={() => toggleSkill(skill)}
                 >
                   <Text style={[
-                    styles.skillText, // Renamed style
+                    styles.skillText,
                     isSelected ? styles.skillTextSelected : styles.skillTextUnselected,
                   ]}>{skill}</Text>
                 </TouchableOpacity>

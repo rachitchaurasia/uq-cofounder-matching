@@ -1,60 +1,31 @@
-# Dependencies
-node_modules/
-package-lock.json
-.pnp
-.pnp.js
+# IDE / Editor specific
+.vscode/
+.idea/
 
-# Expo
-.expo/
-dist/
-web-build/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-
-# macOS
+# OS specific
 .DS_Store
 *.pem
 
-# Local env files
+# Local Environment Variables (if any at root)
 .env*.local
 .env
 
-# TypeScript
-*.tsbuildinfo
+# Node modules (explicitly ignore for frontend/backend if not covered)
+# These might be redundant if the .gitignore inside frontend/backend handles them,
+# but can be good practice in a monorepo root.
+frontend/node_modules/
+matchingapp-backend/node_modules/
 
-# IDE
-.idea/
-.vscode/
+# Build/dist folders (if any at root)
+# build/
+# dist/
+
+# Logs (if any at root)
+*.log
+
+# Cache
+.cache/
+
+# Temp files
 *.swp
 *.swo
-
-# Temporary files
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Testing
-coverage/
-
-# Production
-build/
-out/
-
-# Android/iOS specific
-android/
-ios/
-*.apk
-*.aab
-*.ipa
-
-# Caches
-.cache/
-.npm/
-
-commit-message.txt
