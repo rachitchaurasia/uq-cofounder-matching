@@ -76,14 +76,16 @@ export const Expertise = () => {
   const handleContinue = () => {
     console.log("Selected Skills:", selectedSkills);
     console.log("Available Skills:", availableSkills);
-    // TODO: Save selectedSkills & navigate to the next screen in the signup flow
-    // navigation.navigate('NextScreen', { skills: selectedSkills });
+    // Navigate to the Interests screen
+    navigation.navigate('Interests'); // Changed from placeholder/previous target
   };
+
+  // ... rest of the component (including handleSkip which might also need updating) ...
 
   const handleSkip = () => {
     console.log("Skipped Expertise & Skills selection");
-    // TODO: Navigate to the next screen
-    // navigation.navigate('NextScreen');
+    // Also navigate to Interests when skipping Expertise
+    navigation.navigate('Interests');
   };
 
    const handleGoBack = () => {
