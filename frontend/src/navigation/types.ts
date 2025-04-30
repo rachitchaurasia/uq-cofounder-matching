@@ -9,4 +9,5 @@ export type RootStackParamList = {
   Expertise: undefined; // Add the new Expertise screen here
   Working: undefined;
   Looking: undefined;
+  Offer: undefined;
 };
