@@ -8,6 +8,8 @@ import { Role } from '../screens/Role';
 import { EmailSignInScreen } from '../screens/EmailSignInScreen';
 import { Interests } from '../screens/Interests';
 import { Expertise } from '../screens/Expertise';
+import { WorkingScreen } from '../screens/WorkingScreen';
+import { LookingScreen } from '../screens/LookingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -46,6 +48,14 @@ export const RootNavigator = () => {
         <Stack.Screen 
           name="Expertise"
           component={Expertise}
+        />
+        <Stack.Screen 
+        name="Working" 
+        component={WorkingScreen} 
+        />
+        <Stack.Screen 
+        name="Looking" 
+        component={LookingScreen} 
         />
       </Stack.Navigator>
     </NavigationContainer>
