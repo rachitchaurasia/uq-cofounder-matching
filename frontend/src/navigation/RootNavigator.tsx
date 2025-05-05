@@ -12,6 +12,7 @@ import { WorkingScreen } from '../screens/WorkingScreen';
 import { LookingScreen } from '../screens/LookingScreen';
 import { OfferScreen } from '../screens/OfferScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
+import { RegistrationScreen } from '../screens/RegistrationScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -66,6 +67,10 @@ export const RootNavigator = () => {
         <Stack.Screen 
         name="Welcome" 
         component={WelcomeScreen} 
+        />
+        <Stack.Screen 
+        name="Registration" 
+        component={RegistrationScreen} 
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
+import { updateProfile } from "../api/profile";
 
 const backIcon = require("../assets/back-button.png");
 
@@ -32,6 +33,7 @@ export const Interests = () => {
   const [newInterestText, setNewInterestText] = useState<string>("");
   // State to control the visibility/mode of the input area
   const [isAddingInterest, setIsAddingInterest] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // --- State Persistence Handling (Optional but good practice) ---
   // Using component state directly often works fine with react-navigation's stack
@@ -80,16 +82,28 @@ export const Interests = () => {
     Keyboard.dismiss(); // Dismiss keyboard
   };
 
-  const handleContinue = () => {
-    console.log("Selected Interests:", selectedInterests);
-    console.log("Available Interests:", availableInterests); // Log available ones too
-    // Navigate to the Looking screen
-    navigation.navigate('Looking'); // Pass data if needed: { interests: selectedInterests }
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+        const payload = {
+            interests: selectedInterests.join(',')
+        };
+        console.log("Saving Interests:", payload);
+        const success = await updateProfile(payload);
+
+        if (success) {
+          navigation.navigate('Looking');
+        }
+    } catch (error: any) {
+         console.error("Failed to save interests:", error);
+         Alert.alert("Save Failed", error.message || "Could not save your interests. Please try again.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleSkip = () => {
     console.log("Skipped Interests selection");
-    // TODO: Navigate to the next screen
     navigation.navigate('Looking');
   };
 
@@ -113,12 +127,14 @@ export const Interests = () => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleGoBack} // Use custom back handler if needed
+            disabled={loading}
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.skipButton}
             onPress={handleSkip}
+            disabled={loading}
           >
             <Text style={styles.skipText}>SKIP</Text>
           </TouchableOpacity>
@@ -140,6 +156,7 @@ export const Interests = () => {
             <TouchableOpacity
               style={styles.addInterestsButton}
               onPress={() => setIsAddingInterest(true)}
+              disabled={loading}
             >
               <Text style={styles.addInterestsText}>ADD YOUR INTERESTS HERE</Text>
             </TouchableOpacity>
@@ -153,8 +170,9 @@ export const Interests = () => {
                 onChangeText={setNewInterestText}
                 onSubmitEditing={handleAddInterest} // Allow adding via keyboard 'return' key
                 autoFocus={true} // Focus input immediately
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddInterest}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddInterest} disabled={loading}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
@@ -172,6 +190,7 @@ export const Interests = () => {
                     isSelected ? styles.interestChipSelected : styles.interestChipUnselected,
                   ]}
                   onPress={() => toggleInterest(interest)}
+                  disabled={loading}
                 >
                   <Text style={[
                     styles.interestText,
@@ -186,12 +205,17 @@ export const Interests = () => {
         {/* --- Footer Button --- */}
         {/* Keep the Continue button outside ScrollView for fixed position */}
         <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={handleContinue}
-            >
-              <Text style={styles.continueText}>CONTINUE</Text>
-            </TouchableOpacity>
+            {loading ? (
+                <ActivityIndicator size="large" color="#a702c8" style={{height: 50}} />
+            ) : (
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  onPress={handleContinue}
+                  disabled={loading}
+                >
+                  <Text style={styles.continueText}>CONTINUE</Text>
+                </TouchableOpacity>
+            )}
         </View>
       </View>
     </SafeAreaView>

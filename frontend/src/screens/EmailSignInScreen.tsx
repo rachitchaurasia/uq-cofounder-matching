@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>;
 
@@ -11,6 +13,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Basic email validation regex
   const isEmailValid = (emailToTest: string): boolean => {
@@ -18,7 +21,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(emailToTest);
   };
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setError(null); // Clear previous errors
 
     if (!email.trim() || !password.trim()) {
@@ -31,14 +34,61 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    // --- Placeholder for actual sign-in logic ---
-    // Here the backend team should typically call the authentication service
-    console.log('Attempting Sign In with:', email, password);
-    // If sign-in fails from the backend, you would setError here
-    // e.g., setError('Invalid email or password.');
+    setLoading(true);
 
-    // Alert.alert('Sign In Successful', `Email: ${email}`); // Example success feedback
-    // navigation.navigate('SomeOtherScreen'); // Navigate on success
+    try {
+      console.log(`Attempting login for ${email} at ${API_BASE_URL}/api/auth/login/`);
+      const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          username: email,
+          email: email,
+          password: password
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Login response status:", response.status);
+      console.log("Login response data:", data);
+
+      if (!response.ok) {
+        let errorMessage = `Login failed (Status: ${response.status})`;
+        if (data.non_field_errors && data.non_field_errors.length > 0) {
+            errorMessage = data.non_field_errors[0];
+            if (errorMessage.includes("Unable to log in")) {
+                 errorMessage = "Invalid email or password.";
+            }
+        } else if (data.detail) {
+            errorMessage = data.detail;
+        } else if (typeof data === 'string') {
+            errorMessage = data;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const authToken = data.key;
+      if (!authToken) {
+        console.error("Auth token (key) not found in response data:", data);
+        throw new Error('Login successful, but token was not received.');
+      }
+
+      console.log('Login successful, received token:', authToken);
+      await AsyncStorage.setItem('authToken', authToken);
+      console.log('Auth token stored successfully.');
+
+      navigation.replace('Welcome');
+
+    } catch (err: any) {
+      const message = err.message || 'An unknown error occurred during login.';
+      console.error("Login error:", message, err);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -62,7 +112,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.content}>
           <Text style={styles.label}>Email Address</Text>
           <TextInput
-            style={[styles.input, error && (error.includes('email') || error.includes('Email')) && styles.inputError]}
+            style={[styles.input, error && (error.includes('email') || error.includes('Email') || error.includes('Invalid')) && styles.inputError]}
             placeholder="Enter your email"
             placeholderTextColor="#A0A0A0"
             value={email}
@@ -73,11 +123,12 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
             keyboardType="email-address"
             autoCapitalize="none"
             textContentType="emailAddress"
+            editable={!loading}
           />
 
           <Text style={styles.label}>Password</Text>
           <TextInput
-            style={[styles.input, error && (error.includes('password') || error.includes('Password')) && styles.inputError]}
+            style={[styles.input, error && (error.includes('password') || error.includes('Password') || error.includes('Invalid')) && styles.inputError]}
             placeholder="Enter your password"
             placeholderTextColor="#A0A0A0"
             value={password}
@@ -87,15 +138,29 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
             }}
             secureTextEntry
             textContentType="password"
+            editable={!loading}
           />
 
           {error && <Text style={styles.errorText}>{error}</Text>}
 
+          {loading ? (
+            <ActivityIndicator size="large" color="#FFFFFF" style={styles.loader} />
+          ) : (
+            <TouchableOpacity
+              style={styles.signInButton}
+              onPress={handleSignIn}
+              disabled={loading}
+            >
+              <Text style={styles.signInButtonText}>Sign In</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={styles.signInButton}
-            onPress={handleSignIn}
+            style={styles.registerLink}
+            onPress={() => !loading && navigation.navigate('Registration')}
+            disabled={loading}
           >
-            <Text style={styles.signInButtonText}>Sign In</Text>
+            <Text style={styles.registerLinkText}>Don't have an account? Join now!</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -168,4 +233,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     marginHorizontal: 10,
   },
+  loader: {
+    height: 50,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  registerLink: {
+    marginTop: 25,
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  }
 });

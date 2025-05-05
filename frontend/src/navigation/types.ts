@@ -10,4 +10,6 @@ export type RootStackParamList = {
   Working: undefined;
   Looking: undefined;
   Offer: undefined;
+  Registration: undefined;
+  WorkingScreen: undefined;
 };

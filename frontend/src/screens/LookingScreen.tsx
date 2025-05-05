@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"; // Adjust path if needed
+import { updateProfile } from "../api/profile"; // Import the helper
 
 const backIcon = require("../assets/back-button.png"); // Assuming same back icon
 
@@ -27,6 +28,8 @@ export const LookingScreen = () => { // Renamed component
   const [newItemText, setNewItemText] = useState<string>("");
   // State to control the visibility/mode of the input area
   const [isAddingItem, setIsAddingItem] = useState<boolean>(false);
+  // State for loading
+  const [loading, setLoading] = useState<boolean>(false);
 
   const toggleItem = (item: string) => {
     setSelectedItems((prevSelected) => {
@@ -48,17 +51,29 @@ export const LookingScreen = () => { // Renamed component
     Keyboard.dismiss();
   };
 
-  const handleContinue = () => {
-    console.log("Selected Looking For:", selectedItems);
-    console.log("Available Looking For:", availableItems);
-    // Navigate to the Offer screen
-    navigation.navigate('Offer'); // Changed target
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        looking_for: selectedItems.join(',')
+      };
+      console.log("Saving Looking For:", payload);
+      const success = await updateProfile(payload);
+
+      if (success) {
+        navigation.navigate('Offer');
+      }
+    } catch (error: any) {
+      console.error("Failed to save looking for:", error);
+      Alert.alert("Save Failed", error.message || "Could not save what you're looking for. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSkip = () => {
     console.log("Skipped Looking For selection");
-    // Navigate to the Offer screen
-    navigation.navigate('Offer'); // Changed target
+    navigation.navigate('Offer');
   };
 
   const handleGoBack = () => {
@@ -76,12 +91,14 @@ export const LookingScreen = () => { // Renamed component
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleGoBack} // Use custom back handler if needed
+            disabled={loading}
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.skipButton}
             onPress={handleSkip}
+            disabled={loading}
           >
             <Text style={styles.skipText}>SKIP</Text>
           </TouchableOpacity>
@@ -106,9 +123,10 @@ export const LookingScreen = () => { // Renamed component
                 onFocus={() => setIsAddingItem(true)} 
                 value={newItemText}
                 onChangeText={setNewItemText}
+                editable={!loading}
               />
                {/* Button integrated with input field */}
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={loading}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
@@ -122,8 +140,9 @@ export const LookingScreen = () => { // Renamed component
                 onChangeText={setNewItemText}
                 onSubmitEditing={handleAddItem}
                 autoFocus={true}
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={loading}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
@@ -142,6 +161,7 @@ export const LookingScreen = () => { // Renamed component
                     isSelected ? styles.itemChipSelected : styles.itemChipUnselected,
                     ]}
                   onPress={() => toggleItem(item)}
+                  disabled={loading}
                 >
                   <Text style={[
                     styles.itemText,
@@ -155,12 +175,17 @@ export const LookingScreen = () => { // Renamed component
 
         {/* --- Footer Button --- */}
         <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={handleContinue}
-            >
-              <Text style={styles.continueText}>CONTINUE</Text>
-            </TouchableOpacity>
+            {loading ? (
+                <ActivityIndicator size="large" color="#a702c8" style={{height: 50}} />
+            ) : (
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  onPress={handleContinue}
+                  disabled={loading}
+                >
+                  <Text style={styles.continueText}>CONTINUE</Text>
+                </TouchableOpacity>
+            )}
         </View>
       </View>
     </SafeAreaView>
