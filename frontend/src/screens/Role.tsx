@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import CheckBox from 'expo-checkbox'; // Using expo-checkbox
+import { updateProfile } from "../api/profile"; // Import the helper function
 
 const backIcon = require("../assets/back-button.png");
 
@@ -21,16 +22,34 @@ export const Role = () => {
   // Default to first role's name
   const [selectedRole, setSelectedRole] = useState<string | null>(ROLES_WITH_EMOJIS[0].name);
   const [showRoleOnProfile, setShowRoleOnProfile] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false); // Add loading state
 
-  const handleContinue = () => {
-    console.log("Selected Role:", selectedRole);
-    console.log("Show on Profile:", showRoleOnProfile);
-    if (selectedRole === "STARTUP") {
-      // Navigate directly to the 'Working' screen if STARTUP is selected
-      navigation.navigate('Working'); // Ensure 'Working' is defined in RootStackParamList later
-    } else {
-      // Otherwise, navigate to the 'Expertise' screen
-      navigation.navigate('Expertise');
+  const handleContinue = async () => { // Make async
+    if (!selectedRole) {
+        Alert.alert("Selection Required", "Please select a role.");
+        return;
+    }
+    setLoading(true);
+    try {
+        const payload = {
+            role: selectedRole,
+            show_role_on_profile: showRoleOnProfile
+        };
+        const success = await updateProfile(payload);
+
+        if (success) {
+            // Navigate based on role AFTER saving
+            if (selectedRole === "STARTUP") {
+                navigation.navigate('Working');
+            } else {
+                navigation.navigate('Expertise');
+            }
+        }
+    } catch (error: any) {
+         console.error("Failed to save role:", error);
+         Alert.alert("Save Failed", error.message || "Could not save your role. Please try again.");
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -45,6 +64,7 @@ export const Role = () => {
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
+        disabled={loading}
       >
         <Image source={backIcon} style={styles.backIcon} />
       </TouchableOpacity>
@@ -62,6 +82,7 @@ export const Role = () => {
               selectedRole === name ? styles.roleButtonSelected : styles.roleButtonUnselected,
             ]}
             onPress={() => setSelectedRole(name)}
+            disabled={loading}
           >
             {/* Container for Text and Emoji */}
             <View style={styles.roleButtonContent}>
@@ -92,17 +113,23 @@ export const Role = () => {
           onValueChange={setShowRoleOnProfile}
           style={styles.checkbox}
           color={showRoleOnProfile ? '#A702C8' : undefined}
+          disabled={loading}
         />
         <Text style={styles.checkboxLabel}>Show my role on my profile</Text>
       </View>
 
       {/* Continue Button */}
-      <TouchableOpacity
-        style={styles.continueButton}
-        onPress={handleContinue}
-      >
-        <Text style={styles.continueText}>CONTINUE</Text>
-      </TouchableOpacity>
+      {loading ? (
+          <ActivityIndicator size="large" color="#a702c8" style={{ marginTop: 20 }} />
+      ) : (
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={handleContinue}
+            disabled={loading || !selectedRole}
+          >
+            <Text style={styles.continueText}>CONTINUE</Text>
+          </TouchableOpacity>
+      )}
     </View>
   );
 };

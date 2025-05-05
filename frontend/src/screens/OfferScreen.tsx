@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"; // Adjust path if needed
+import { updateProfile } from "../api/profile"; // Import the helper
 
 const backIcon = require("../assets/back-button.png"); // Assuming same back icon
 
@@ -26,6 +27,7 @@ export const OfferScreen = () => {
   const [newOfferText, setNewOfferText] = useState<string>("");
   // State to control the visibility/mode of the input area
   const [isAddingOffer, setIsAddingOffer] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false); // <<< Add loading state
 
   const toggleOffer = (offer: string) => {
     setSelectedOffers((prevSelected) => {
@@ -47,17 +49,31 @@ export const OfferScreen = () => {
     Keyboard.dismiss();
   };
 
-  const handleContinue = () => {
-    console.log("Selected Offers:", selectedOffers);
-    console.log("Available Offers:", availableOffers);
-    navigation.navigate('Welcome');
-    console.log("Navigate to Welcome screen");
+  const handleContinue = async () => { // <<< Make async
+    setLoading(true); // <<< Start loading
+    try {
+        const payload = {
+            offers: selectedOffers.join(',') // <<< Create payload
+        };
+        console.log("Saving Offers:", payload);
+        const success = await updateProfile(payload); // <<< Call API
+
+        if (success) {
+          // This is the last step, navigate to Welcome screen
+          // Use replace to remove the onboarding stack
+          navigation.replace('Welcome'); // <<< Navigate on success
+        }
+    } catch (error: any) {
+         console.error("Failed to save offers:", error);
+         Alert.alert("Save Failed", error.message || "Could not save what you can offer. Please try again.");
+    } finally {
+        setLoading(false); // <<< Stop loading
+    }
   };
 
-  const handleSkip = () => {
+  const handleSkip = () => { // Optional: Save empty state or just navigate
     console.log("Skipped Offer selection");
-    navigation.navigate('Welcome');
-    console.log("Navigate to Welcome screen");
+    navigation.replace('Welcome'); // Still go to Welcome screen
   };
 
   const handleGoBack = () => {
@@ -67,7 +83,7 @@ export const OfferScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* --- Header Elements --- */}
+        {/* --- Header Elements (Add disabled={loading}) --- */}
         <View style={styles.header}>
           <View style={styles.progressBarContainer}>
             <View style={styles.progressFill} />
@@ -75,12 +91,14 @@ export const OfferScreen = () => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleGoBack}
+            disabled={loading}
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.skipButton}
             onPress={handleSkip}
+            disabled={loading}
           >
             <Text style={styles.skipText}>SKIP</Text>
           </TouchableOpacity>
@@ -95,7 +113,7 @@ export const OfferScreen = () => {
           {/* Title */}
           <Text style={styles.title}>What can you offer?</Text>
 
-          {/* --- Add Offer Input Area --- */}
+          {/* --- Add Offer Input Area (Add disabled={loading}) --- */}
           {!isAddingOffer ? (
             <View style={styles.addOfferInputContainer}>
               <TextInput
@@ -105,8 +123,9 @@ export const OfferScreen = () => {
                 onFocus={() => setIsAddingOffer(true)}
                 value={newOfferText}
                 onChangeText={setNewOfferText}
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer} disabled={loading}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
@@ -120,28 +139,30 @@ export const OfferScreen = () => {
                 onChangeText={setNewOfferText}
                 onSubmitEditing={handleAddOffer}
                 autoFocus={true}
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddOffer} disabled={loading}>
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* --- Offer Chips --- */}
-          <View style={styles.offersContainer}> {/* Renamed style */}
+          {/* --- Offer Chips (Add disabled={loading}) --- */}
+          <View style={styles.offersContainer}>
             {availableOffers.map((offer) => {
               const isSelected = selectedOffers.includes(offer);
               return (
                 <TouchableOpacity
                   key={offer}
                   style={[
-                    styles.offerChip, // Renamed style
+                    styles.offerChip,
                     isSelected ? styles.offerChipSelected : styles.offerChipUnselected,
                   ]}
                   onPress={() => toggleOffer(offer)}
+                  disabled={loading}
                 >
                   <Text style={[
-                    styles.offerText, // Renamed style
+                    styles.offerText,
                     isSelected ? styles.offerTextSelected : styles.offerTextUnselected,
                   ]}>{offer}</Text>
                 </TouchableOpacity>
@@ -150,14 +171,15 @@ export const OfferScreen = () => {
           </View>
         </ScrollView>
 
-        {/* --- Footer Button --- */}
+        {/* --- Footer Button (Show loader or button) --- */}
         <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={handleContinue}
-            >
-              <Text style={styles.continueText}>CONTINUE</Text>
-            </TouchableOpacity>
+            {loading ? (
+                <ActivityIndicator size="large" color="#a702c8" style={{height: 50}}/>
+            ) : (
+                <TouchableOpacity style={styles.continueButton} onPress={handleContinue} disabled={loading}>
+                    <Text style={styles.continueText}>CONTINUE</Text>
+                </TouchableOpacity>
+            )}
         </View>
       </View>
     </SafeAreaView>
@@ -234,7 +256,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   // Input Area Styles
-  addOfferInputContainer: { // Renamed
+  addOfferInputContainer: {
     flexDirection: 'row',
     width: '100%',
     height: 50,
@@ -247,11 +269,11 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 10,
   },
-  addOfferInputContainerActive: { // Renamed
+  addOfferInputContainerActive: {
       borderColor: '#a702c8',
       backgroundColor: 'white',
   },
-  addOfferInput: { // Renamed
+  addOfferInput: {
     flex: 1,
     fontSize: 16,
     color: '#010001',
@@ -269,14 +291,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   // Offer Chips styles
-  offersContainer: { // Renamed
+  offersContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
     width: '100%',
     marginBottom: 'auto',
   },
-  offerChip: { // Renamed
+  offerChip: {
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 15,
@@ -284,22 +306,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
-  offerChipUnselected: { // Renamed
+  offerChipUnselected: {
     backgroundColor: "white",
     borderColor: "#E0E0E0",
   },
-  offerChipSelected: { // Renamed
+  offerChipSelected: {
     backgroundColor: "white",
     borderColor: "#a702c8",
   },
-  offerText: { // Renamed
+  offerText: {
     fontSize: 14,
     fontWeight: "500",
   },
-  offerTextUnselected: { // Renamed
+  offerTextUnselected: {
     color: "#828693",
   },
-  offerTextSelected: { // Renamed
+  offerTextSelected: {
     color: "#a702c8",
   },
   footer: {

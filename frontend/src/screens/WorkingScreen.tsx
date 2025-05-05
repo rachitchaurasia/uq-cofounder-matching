@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
+import { updateProfile } from "../api/profile";
 
 const backIcon = require("../assets/back-button.png"); 
 
@@ -17,7 +18,7 @@ const INITIAL_FIELDS = [
 // Pre-selected fields based on the image
 const PRE_SELECTED_FIELDS = ["Hockey", "Home Workout"];
 
-export const WorkingScreen = () => { // Renamed component
+export const WorkingScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // State for all available fields (including user-added)
@@ -28,6 +29,7 @@ export const WorkingScreen = () => { // Renamed component
   const [newFieldText, setNewFieldText] = useState<string>("");
   // State to control the visibility/mode of the input area
   const [isAddingField, setIsAddingField] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const toggleField = (field: string) => {
     setSelectedFields((prevSelected) => {
@@ -50,28 +52,32 @@ export const WorkingScreen = () => { // Renamed component
     Keyboard.dismiss();
   };
 
-  const handleContinue = () => {
-    console.log("Selected Fields:", selectedFields);
-    console.log("Available Fields:", availableFields);
-    navigation.navigate('Interests');
-    console.log("Navigate to next screen (Interests)");
-  };
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+        const payload = {
+            startup_industries: selectedFields.join(',')
+        };
+        console.log("Saving Working On Fields:", payload);
+        const success = await updateProfile(payload);
 
-  // Replaces Skip/Add Later functionality
-  const handleAddLater = () => {
-    console.log("Adding fields later");
-    navigation.navigate('Interests');
-    console.log("Navigate to next screen (Interests)");
+        if (success) {
+          navigation.navigate('Offer');
+        }
+    } catch (error: any) {
+         console.error("Failed to save working on fields:", error);
+         Alert.alert("Save Failed", error.message || "Could not save what you're working on. Please try again.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleSkip = () => {
-    console.log("Skipped Expertise & Skills selection");
-    // Also navigate to Interests when skipping Expertise
-    navigation.navigate('Interests');
+    console.log("Skipped Working On selection");
+    navigation.navigate('Offer');
   };
 
-
-   const handleGoBack = () => {
+  const handleGoBack = () => {
        navigation.goBack();
    }
 
@@ -85,7 +91,7 @@ export const WorkingScreen = () => { // Renamed component
           </View>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={handleGoBack} // Use custom back handler if needed
+            onPress={handleGoBack}
           >
             <Image source={backIcon} style={styles.backIcon} />
           </TouchableOpacity>
@@ -153,15 +159,18 @@ export const WorkingScreen = () => { // Renamed component
 
         </ScrollView>
 
-
         {/* --- Footer Button --- */}
         <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={handleContinue}
-            >
-              <Text style={styles.continueText}>CONTINUE</Text>
-            </TouchableOpacity>
+            {loading ? (
+                <ActivityIndicator size="large" color="#a702c8" style={{height: 50}}/>
+            ) : (
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  onPress={handleContinue}
+                >
+                  <Text style={styles.continueText}>CONTINUE</Text>
+                </TouchableOpacity>
+            )}
         </View>
       </View>
     </SafeAreaView>

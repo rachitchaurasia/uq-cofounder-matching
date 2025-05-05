@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-
+import { updateProfile } from "../api/profile";
 
 import crossIcon from "../assets/cross.png";
 
@@ -14,6 +14,7 @@ export const NameScreen = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [formErrors, setFormErrors] = useState<{ firstName?: string; lastName?: string }>({});
+  const [loading, setLoading] = useState(false);
 
   // Function to validate form
   const validateForm = () => {
@@ -29,12 +30,29 @@ export const NameScreen = () => {
   };
 
   // Function to handle continue button press
-  const handleContinue = () => {
-    if (validateForm()) {
-      // Store the values (you can use context, async storage, or pass to next screen)
-      console.log("First Name:", firstName);
-      console.log("Last Name:", lastName);
-      navigation.navigate("Role");
+  const handleContinue = async () => {
+    if (!validateForm()) {
+      return;
+    }
+    setLoading(true);
+    try {
+      // We need to update the nested 'user' object for first/last name
+      const payload = {
+        user: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim()
+        }
+      };
+      const success = await updateProfile(payload);
+
+      if (success) {
+        navigation.navigate("Role");
+      }
+    } catch (error: any) {
+      console.error("Failed to save name:", error);
+      Alert.alert("Save Failed", error.message || "Could not save your name. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,6 +79,7 @@ export const NameScreen = () => {
           placeholderTextColor="#828693"
           value={firstName}
           onChangeText={setFirstName}
+          editable={!loading}
         />
         {formErrors.firstName && <Text style={styles.errorText}>{formErrors.firstName}</Text>}
       </View>
@@ -73,18 +92,23 @@ export const NameScreen = () => {
           placeholderTextColor="#828693" 
           value={lastName}
           onChangeText={setLastName}
+          editable={!loading}
         />
         {formErrors.lastName && <Text style={styles.errorText}>{formErrors.lastName}</Text>}
       </View>
 
       {/* Continue Button */}
-      <TouchableOpacity
-        style={styles.continueButton}
-        onPress={handleContinue}
-        disabled={!firstName.trim() || !lastName.trim()}
-      >
-        <Text style={styles.continueText}>CONTINUE</Text>
-      </TouchableOpacity>
+      {loading ? (
+        <ActivityIndicator size="large" color="#a702c8" style={{ marginTop: 20 }} />
+      ) : (
+        <TouchableOpacity
+          style={[styles.continueButton, (!firstName.trim() || !lastName.trim()) && styles.disabledButton]}
+          onPress={handleContinue}
+          disabled={!firstName.trim() || !lastName.trim() || loading}
+        >
+          <Text style={styles.continueText}>CONTINUE</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -105,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9d9d9",
   },
   progressFill: {
-    width: "25%", // Adjust this dynamically as the user progresses
+    width: "25%",
     height: "100%",
     backgroundColor: "#a702c8",
   },
@@ -113,18 +137,20 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 60,
     left: 20,
+    zIndex: 1,
   },
   crossIcon: {
     width: 24,
     height: 24,
-    tintColor: "#5d5b5d", // Ensure it's visible
+    tintColor: "#5d5b5d",
   },
   title: {
     fontSize: 34,
     fontWeight: "600",
     textAlign: "center",
     color: "#010001",
-    marginBottom: 20,
+    marginBottom: 40,
+    paddingHorizontal: 20,
   },
   inputContainer: {
     width: 312,
@@ -157,6 +183,9 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  disabledButton: {
+    backgroundColor: "#cccccc",
   },
 });
 

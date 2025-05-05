@@ -29,9 +29,9 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
           <TouchableOpacity 
             style={styles.signInButton}
-            onPress={() => console.log('Facebook Sign In')}
+            onPress={() => console.log('Google Sign In')}
           >
-            <Text style={styles.buttonText}>SIGN IN WITH FACEBOOK</Text>
+            <Text style={styles.buttonText}>SIGN IN WITH GOOGLE</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -44,7 +44,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
           {/* 🔥 Modified Join Now Button */}
           <TouchableOpacity 
             style={styles.joinButton}
-            onPress={() => navigation.navigate('Name')} // Navigate to Name screen
+            onPress={() => navigation.navigate('Registration')}
           >
             <Text style={styles.joinButtonText}>Not a member? Join now!</Text>
           </TouchableOpacity>
