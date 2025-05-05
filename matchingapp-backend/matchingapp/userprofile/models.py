@@ -47,6 +47,13 @@ class UserProfile(models.Model):
     recommendations_count = models.PositiveIntegerField(default=0)
     volunteer_experience = models.TextField(blank=True, null=True)
 
+    #  Fields from Onboarding ---
+    role = models.CharField(max_length=100, blank=True, null=True) 
+    show_role_on_profile = models.BooleanField(default=False)
+    looking_for = models.TextField(blank=True, null=True)
+    offers = models.TextField(blank=True, null=True, help_text="Comma-separated things user can offer") # From OfferScreen
+    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -59,9 +66,10 @@ class UserProfile(models.Model):
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
-    # Ensure the profile is saved even if the user is just updated (e.g., email change)
-    # Using try-except block in case the profile somehow wasn't created initially
     try:
+        # Avoid recursive save loop if profile update triggered user save
+        if hasattr(instance, '_profile_saved'):
+            return
         instance.profile.save()
     except UserProfile.DoesNotExist:
          # If profile doesn't exist (e.g., for users created before this signal was added), create it.

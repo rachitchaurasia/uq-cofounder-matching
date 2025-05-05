@@ -248,5 +248,82 @@ You should see Django’s default tables, such as:
   - django_content_type (used by Django’s ORM)
 
 Congratulations! Your Django project is now connected to a MySQL Database!
-## 7. Coming soon!
-How to use Django object relational mapper (ORM) to define your own tables. There is no need to create your own tables with SQL commands as Django already provides an abstraction for this. You'll see how Django automatically writes the correct SQL based on you defining the tables as objects in the Django framework files.
+## 7. Start Django locally
+
+If you encounter any issues:
+
+1. Check if Expo Go is up to date
+2. Verify Node.js version compatibility
+3. Clear Metro bundler cache
+4. Check for any conflicting dependencies
+5. Ensure all environment variables are set correctly
+
+---
+
+## Backend Setup & Usage (Django)
+
+This section details how to set up and run the Django backend services for the UQ Co-founder Matcher application.
+
+### Prerequisites
+
+### 1. Clone the Repository (if not already done)
+
+```bash
+git clone git@github.com:rachitchaurasia/uq-cofounder-matching.git
+# Navigate to the backend directory
+cd uq-cofounder-matching/matchingapp-backend
+```
+
+### 2. Install Dependencies
+
+Assuming manual installs were done previously based on our setup:
+
+```bash
+# Ensure you have the necessary packages installed
+pip install Django djangorestframework dj-rest-auth django-allauth django-cors-headers Pillow pandas
+
+```
+
+### 3. Apply Database Migrations
+
+This command sets up the database schema based on the models defined in the Django apps. Run this from the `matchingapp-backend/matchingapp` directory (where `manage.py` is located).
+
+```bash
+# Navigate to the directory containing manage.py if you aren't already there
+cd matchingapp
+
+# Apply migrations
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 4. Run the Development Server
+
+This starts the Django backend API server.
+
+```bash
+python manage.py runserver
+```
+The server will typically run on `http://127.0.0.1:8000/admin`. You should see output indicating the server has started without errors.
+
+Follow the prompts. You can use the following credentials for local development if desired:
+- **Username:** `dev31`
+- **Password:** `devgupta3110`
+
+### 5. Create a Superuser (for Admin Access)
+
+This creates an administrator account allowing access to the Django admin interface (`/admin/`).
+
+```bash
+python manage.py createsuperuser
+```
+
+### 6. Run Matching Algorithm
+
+To trigger the matching algorithm calculation based on the data in the database (replace `1` with the actual User ID you want to find matches for):
+
+```bash
+python manage.py run_matching "no@no.com"
+```
+
+---

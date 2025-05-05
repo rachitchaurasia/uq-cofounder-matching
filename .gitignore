@@ -29,3 +29,7 @@ matchingapp-backend/node_modules/
 # Temp files
 *.swp
 *.swo
+/__pycache__/
+matchingapp-backend/__pycache__/
+__pycache__/
+/db.sqlite3
