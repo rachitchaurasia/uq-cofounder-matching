@@ -155,10 +155,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 SITE_ID = 1
 
+# User account settings
+AUTH_USER_MODEL = 'user_management.CustomUser'
 ACCOUNT_LOGIN_METHOD = 'email'
 ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_SIGNUP_FIELDS = ['email', 'password']
-
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
