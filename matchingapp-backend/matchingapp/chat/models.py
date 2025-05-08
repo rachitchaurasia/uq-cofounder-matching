@@ -1,7 +1,4 @@
 from django.db import models
-
-# Create your models here.
-from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
@@ -9,16 +6,17 @@ from django.utils import timezone
 class Conversation(models.Model):
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        related_name='conversations',
         verbose_name="participants"
     )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="Created at"
+        verbose_name="created at"
     )
-    updated_at = models.DateTimeField(
+
+    send_time = models.DateTimeField(
         auto_now=True,
-        verbose_name="Last active time"
+        verbose_name="sent time"
     )
     
     class Meta:
@@ -27,3 +25,33 @@ class Conversation(models.Model):
     
     def __str__(self):
         return f"Conversation {self.id}"
+
+
+class Chat(models.Model):
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        verbose_name="Chat"
+    )
+
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name="sender"
+    )
+
+    content = models.TextField(
+        verbose_name="content"
+    )
+
+    send_time = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="sent time"
+    )
+    
+    class Meta:
+        verbose_name = "message"
+        verbose_name_plural = "message"
+    
+    def __str__(self):
+        return f"{self.sender} message in chat {self.conversation.id}"
