@@ -15,6 +15,7 @@ import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { RegistrationScreen } from '../screens/RegistrationScreen';
 import AppTabs from './AppTabs';
 import { NewsDetailScreen } from '../screens/NewsDetailScreen';
+import { CompanyInfoScreen } from '../screens/CompanyInfoScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -83,6 +84,10 @@ export const RootNavigator = () => {
         name="NewsDetail" 
         component={NewsDetailScreen}
         options={{ headerShown: true, title: 'Article Details' }}
+        />
+        <Stack.Screen 
+          name="CompanyInfo" 
+          component={CompanyInfoScreen} 
         />
       </Stack.Navigator>
     </NavigationContainer>

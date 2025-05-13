@@ -1,20 +1,68 @@
 import csv
+import random
+import sys
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
-from userprofile.models import UserProfile # Import your profile model
+from userprofile.models import UserProfile
 from django.db import IntegrityError, transaction
+from django.db.models.signals import post_save
+from django.conf import settings
 
-User = get_user_model() # Get the active User model
+User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Imports user profiles from a specified CSV file.'
+    help = 'Imports user profiles from a specified CSV file with option to delete existing data.'
 
     def add_arguments(self, parser):
         parser.add_argument('csv_file_path', type=str, help='The path to the CSV file to import.')
+        parser.add_argument(
+            '--delete-existing',
+            action='store_true',
+            help='Delete all existing profiles and users before import',
+        )
+        parser.add_argument(
+            '--no-prompt',
+            action='store_true',
+            help='Do not prompt for confirmation before deletion',
+        )
 
     def handle(self, *args, **options):
         file_path = options['csv_file_path']
-        self.stdout.write(self.style.SUCCESS(f'Starting import from {file_path}'))
+        delete_existing = options['delete_existing']
+        no_prompt = options['no_prompt']
+        
+        # Temporarily disconnect the post_save signal that creates profiles
+        from userprofile.models import create_or_update_user_profile
+        post_save.disconnect(create_or_update_user_profile, sender=settings.AUTH_USER_MODEL)
+        
+        self.stdout.write(self.style.SUCCESS(f'Starting import process from {file_path}'))
+        
+        # Delete existing data if requested
+        if delete_existing:
+            if not no_prompt:
+                confirm = input('⚠️ WARNING: This will delete ALL existing user profiles and users. Are you sure? (yes/no): ')
+                if confirm.lower() != 'yes':
+                    self.stdout.write(self.style.WARNING('Operation canceled by user.'))
+                    # Reconnect signal before exiting
+                    post_save.connect(create_or_update_user_profile, sender=settings.AUTH_USER_MODEL)
+                    return
+            
+            try:
+                with transaction.atomic():
+                    # Delete all profiles first (due to foreign key constraints)
+                    profile_count = UserProfile.objects.count()
+                    UserProfile.objects.all().delete()
+                    
+                    # Delete all users
+                    user_count = User.objects.count()
+                    User.objects.all().delete()
+                    
+                    self.stdout.write(self.style.SUCCESS(f'Deleted {profile_count} profiles and {user_count} users'))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f'Error deleting existing data: {e}'))
+                # Reconnect signal before exiting
+                post_save.connect(create_or_update_user_profile, sender=settings.AUTH_USER_MODEL)
+                return
 
         imported_count = 0
         skipped_count = 0
@@ -24,113 +72,120 @@ class Command(BaseCommand):
             with open(file_path, mode='r', encoding='utf-8') as csvfile:
                 # Use DictReader for easier access by header name
                 reader = csv.DictReader(csvfile)
-
+                
+                # Store all rows for validation before processing
+                rows = list(reader)
+                
+                if not rows:
+                    self.stdout.write(self.style.WARNING('CSV file is empty or could not be read properly.'))
+                    # Reconnect signal before exiting
+                    post_save.connect(create_or_update_user_profile, sender=settings.AUTH_USER_MODEL)
+                    return
+                
                 # --- IMPORTANT: Verify Headers ---
-                # Check if required headers are present (adapt as needed)
-                required_headers = ['id', 'name', 'timestamp'] # Add other essential headers
+                # Check if required headers are present
+                required_headers = ['id', 'name']
                 if not all(header in reader.fieldnames for header in required_headers):
-                    missing = set(required_headers) - set(reader.fieldnames)
+                    missing = set(required_headers) - set(reader.fieldnames or [])
                     raise CommandError(f"CSV file is missing required headers: {', '.join(missing)}")
-                self.stdout.write(self.style.SUCCESS('CSV headers verified.'))
-
-                for row in reader:
+                
+                self.stdout.write(self.style.SUCCESS(f'CSV headers verified. Found {len(rows)} records to process.'))
+                
+                # Optional progress bar handling
+                import_total = len(rows)
+                
+                for i, row in enumerate(rows):
+                    # Display progress
+                    progress = (i / import_total) * 100
+                    sys.stdout.write(f"\rImporting: {progress:.1f}% ({i+1}/{import_total})")
+                    sys.stdout.flush()
+                    
                     try:
                         # --- Data Extraction and Cleaning ---
-                        # Extract data, provide defaults or skip if essential data is missing
                         user_id_csv = row.get('id', '').strip()
                         full_name = row.get('name', '').strip()
-                        timestamp_str = row.get('timestamp', '').strip() # Use if needed for user creation date?
-
-                        # For User model, we need email. If not in CSV, generate or skip.
-                        # Let's assume 'id' can be used to generate a unique placeholder email
-                        # If you have real emails, use row.get('email_header')
+                        
                         if not user_id_csv:
-                            self.stdout.write(self.style.WARNING(f"Skipping row due to missing 'id'."))
                             skipped_count += 1
                             continue
-
-                        # Generate a placeholder email - REPLACE if you have real emails
-                        email = f"user_{user_id_csv}@example.com"
-
+                        
+                        # Generate a placeholder email
+                        email = f"{user_id_csv}@example.com"
+                        
                         # Extract first/last name (simple split)
-                        first_name = full_name.split(' ')[0] if full_name else f"User_{user_id_csv}"
-                        last_name = ' '.join(full_name.split(' ')[1:]) if ' ' in full_name else ''
-
+                        name_parts = full_name.split(' ') if full_name else [f"User_{user_id_csv}"]
+                        first_name = name_parts[0]
+                        last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+                        
                         # --- Create User and Profile within a Transaction ---
-                        with transaction.atomic(): # Ensure User and Profile are created together
-                            # Get or create the User
-                            # Use update_or_create to handle potential reruns
-                            user, created = User.objects.update_or_create(
-                                # Use a unique field from CSV if available (e.g., id mapped to username?)
-                                # Using generated email as the primary lookup key here
+                        with transaction.atomic():
+                            # Create the User
+                            user = User.objects.create_user(
+                                username=email,
                                 email=email,
-                                defaults={
-                                    'username': email, # Required, use email if no other username
-                                    'first_name': first_name,
-                                    'last_name': last_name,
-                                    # Set a default password - users will need to reset it
-                                    # It's insecure to derive passwords from CSV data
-                                    'password': '!' # Set unusable password
-                                }
+                                first_name=first_name,
+                                last_name=last_name
                             )
-                            if created:
-                                user.set_unusable_password() # Ensure password is not usable
-                                user.save()
-                                self.stdout.write(f"Created User: {email}")
-                            else:
-                                self.stdout.write(f"Found existing User: {email}")
-
-
-                            # --- Populate Profile Fields ---
-                            # Use update_or_create for the profile as well
-                            # The signal handler might have already created it if the user existed
-                            profile, profile_created = UserProfile.objects.update_or_create(
+                            # Set a temporary password
+                            user.set_password('12345678')
+                            user.save()
+                            
+                            # --- Create Profile with all available fields ---
+                            profile = UserProfile.objects.create(
                                 user=user,
-                                defaults={
-                                    'city': row.get('city', '').strip() or None,
-                                    'country_code': row.get('country_code', '').strip() or None,
-                                    'region': row.get('region', '').strip() or None,
-                                    'about': row.get('about', '').strip() or None,
-                                    'avatar': row.get('avatar', '').strip() or None,
-                                    'url': row.get('url', '').strip() or None,
-                                    'position': row.get('position', '').strip() or None,
-                                    'current_company_name': row.get('current_company:name', '').strip() or None,
-                                    'current_company_id': row.get('current_company:company_id', '').strip() or None,
-                                    'experience_details': row.get('experience', '').strip() or None, # Map 'experience' CSV to 'experience_details' model field
-                                    'experience_level': row.get('experience_level', '').strip() or None,
-                                    'education_summary': row.get('education', '').strip() or None, # Map 'education' CSV to 'education_summary' model field
-                                    'education_details': row.get('educations_details', '').strip() or None, # Map 'educations_details' CSV
-                                    'skills': row.get('skills', '').strip() or None,
-                                    'skill_categories': row.get('skill_categories', '').strip() or None,
-                                    'languages': row.get('languages', '').strip() or None,
-                                    'interests': row.get('interests', '').strip() or None,
-                                    'startup_industries': row.get('startup_industries', '').strip() or None,
-                                    'startup_goals': row.get('startup_goals', '').strip() or None,
-                                    # Add other fields as needed
-                                }
+                                city=row.get('city', '').strip() or None,
+                                country_code=row.get('country_code', '').strip() or '+61',
+                                region=row.get('region', '').strip() or 'Australia',
+                                about=row.get('about', '').strip() or None,
+                                avatar=row.get('avatar', '').strip() or None,
+                                url=row.get('url', '').strip() or None,
+                                position=row.get('position', '').strip() or random.choice(['CO-FOUNDER', 'INVESTOR', 'ENTREPRENEUR', 'DEVELOPER', 'STARTUP']),
+                                current_company_name=row.get('current_company:name', '').strip() or None,
+                                current_company_id=row.get('current_company:company_id', '').strip() or None,
+                                experience_details=row.get('experience', '').strip() or None,
+                                experience_level=row.get('experience_level', '').strip() or None,
+                                education_summary=row.get('education', '').strip() or None,
+                                education_details=row.get('educations_details', '').strip() or None,
+                                skills=row.get('skills', '').strip() or None,
+                                skill_categories=row.get('skill_categories', '').strip() or None,
+                                languages=row.get('languages', '').strip() or None,
+                                interests=row.get('interests', '').strip() or random.choice(["AI", "Machine Learning", "Healthcare", "Climate change", "Energy", "Heavy Metal", "House Parties", "Gin Tonic", "Gymnastics", "Cloud","Hot Yoga", "Meditation", "Spotify", "Sushi", "Hockey", "Basketball","Slam Poetry", "Home Workout", "Theater", "Cafe Hopping", "Aquarium", "Sneakers"]),
+                                startup_industries=row.get('startup_industries', '').strip() or random.choice(['Tech', 'Finance', 'Healthcare', 'Education', 'Retail', 'Entertainment', 'Other']),
+                                startup_goals=row.get('startup_goals', '').strip() or random.choice(['Grow revenue', 'Expand market', 'Develop new product', 'Improve customer service', 'Find Co-Founder', 'Improve customer satisfaction', 'Increase customer engagement', 'Increase customer loyalty', 'Increase customer retention', 'Increase customer satisfaction', 'Increase customer engagement', 'Increase customer loyalty']),
+                                certifications=row.get('certifications', '').strip() or None,
+                                courses=row.get('courses', '').strip() or None,
+                                recommendations_count=int(row.get('recommendations_count', 0)) if row.get('recommendations_count', '').strip() else 0,
+                                volunteer_experience=row.get('volunteer_experience', '').strip() or None,
+                                phone=row.get('phone', '').strip() or "1234567898",
                             )
-
-                            if profile_created and not created:
-                                 self.stdout.write(f"Created Profile for existing User: {email}")
-                            elif not profile_created:
-                                 self.stdout.write(f"Updated Profile for User: {email}")
-
-
+                            
                         imported_count += 1
-
+                        
                     except IntegrityError as e:
-                        self.stdout.write(self.style.ERROR(f"IntegrityError for row (maybe duplicate email/username?): {row} - {e}"))
+                        self.stdout.write(self.style.ERROR(f"\nIntegrityError for row {i+1}: {e}"))
                         error_count += 1
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error processing row: {row} - {e}"))
+                        self.stdout.write(self.style.ERROR(f"\nError processing row {i+1}: {e}"))
                         error_count += 1
+                
+                # End progress line
+                sys.stdout.write("\n")
 
         except FileNotFoundError:
             raise CommandError(f'File "{file_path}" does not exist.')
         except Exception as e:
-             raise CommandError(f'An unexpected error occurred: {e}')
+            raise CommandError(f'An unexpected error occurred: {e}')
+        finally:
+            # Always reconnect the signal when done
+            post_save.connect(create_or_update_user_profile, sender=settings.AUTH_USER_MODEL)
 
-        self.stdout.write(self.style.SUCCESS(f'Import finished.'))
-        self.stdout.write(self.style.SUCCESS(f'Successfully imported/updated: {imported_count}'))
+        self.stdout.write(self.style.SUCCESS(f'\nImport finished!'))
+        self.stdout.write(self.style.SUCCESS(f'Successfully imported: {imported_count}'))
         self.stdout.write(self.style.WARNING(f'Skipped rows: {skipped_count}'))
         self.stdout.write(self.style.ERROR(f'Rows with errors: {error_count}'))
+        
+        # Add instructions for after import
+        self.stdout.write(self.style.SUCCESS('\nNext Steps:'))
+        self.stdout.write('1. Run migrations if needed: python manage.py migrate')
+        self.stdout.write('2. Create a superuser if needed: python manage.py createsuperuser')
+        self.stdout.write('3. Check the imported data in Django admin')

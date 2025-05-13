@@ -6,6 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
+import { useStreamChat } from '../context/StreamChatContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>;
 
@@ -14,6 +15,7 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const { setUserAndConnect } = useStreamChat();
 
   // Basic email validation regex
   const isEmailValid = (emailToTest: string): boolean => {
@@ -21,28 +23,44 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(emailToTest);
   };
 
-  const handleSignIn = async () => {
-    setError(null); // Clear previous errors
-
-    if (!email.trim() || !password.trim()) {
-      setError('Email and password cannot be empty.');
-      return;
-    }
-
-    if (!isEmailValid(email)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    setLoading(true);
-
+  const fetchUserProfile = async () => {
     try {
-      console.log(`Attempting login for ${email} at ${API_BASE_URL}/api/auth/login/`);
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
+  };
+
+  const handleSignIn = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      console.log(`POSTing to ${API_BASE_URL}/api/auth/login/ with explicit headers`);
+      
+      // Very explicit fetch with complete headers
       const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           username: email,
@@ -50,43 +68,55 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
           password: password
         }),
       });
-
-      const data = await response.json();
-      console.log("Login response status:", response.status);
-      console.log("Login response data:", data);
-
-      if (!response.ok) {
-        let errorMessage = `Login failed (Status: ${response.status})`;
-        if (data.non_field_errors && data.non_field_errors.length > 0) {
-            errorMessage = data.non_field_errors[0];
-            if (errorMessage.includes("Unable to log in")) {
-                 errorMessage = "Invalid email or password.";
-            }
-        } else if (data.detail) {
-            errorMessage = data.detail;
-        } else if (typeof data === 'string') {
-            errorMessage = data;
+      
+      console.log("Status:", response.status);
+      
+      // Parse response
+      let data;
+      try {
+        data = await response.json();
+        console.log("Response data:", data);
+      } catch (jsonError) {
+        console.error("JSON parse error:", jsonError);
+        setError('Invalid response from server');
+        setLoading(false);
+        return;
+      }
+      
+      // Check if login succeeded
+      if (response.status !== 200 || !data.key) {
+        let errorMessage = 'Invalid email or password';
+        if (data.non_field_errors) {
+          errorMessage = data.non_field_errors[0];
         }
-        throw new Error(errorMessage);
+        setError(errorMessage);
+        setLoading(false);
+        return;
       }
-
-      const authToken = data.key;
-      if (!authToken) {
-        console.error("Auth token (key) not found in response data:", data);
-        throw new Error('Login successful, but token was not received.');
+      
+      // Save token
+      try {
+        await AsyncStorage.setItem('authToken', data.key);
+        console.log("Token saved successfully");
+      } catch (storageError) {
+        console.error("Storage error:", storageError);
+        setError('Failed to save login info');
+        setLoading(false);
+        return;
       }
-
-      console.log('Login successful, received token:', authToken);
-      await AsyncStorage.setItem('authToken', authToken);
-      console.log('Auth token stored successfully.');
-
-      navigation.replace('Welcome');
-
-    } catch (err: any) {
-      const message = err.message || 'An unknown error occurred during login.';
-      console.error("Login error:", message, err);
-      setError(message);
-    } finally {
+      
+      // Navigate successfully
+      setLoading(false);
+      console.log("Login successful, navigating to Welcome");
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+      
+    } catch (e) {
+      // Ultimate fallback error handler
+      console.error("Unexpected error in login flow:", e);
+      setError('An unexpected error occurred');
       setLoading(false);
     }
   };

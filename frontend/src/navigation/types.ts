@@ -14,6 +14,7 @@ export type RootStackParamList = {
   WorkingScreen: undefined;
   MainApp: undefined; // This will host the Bottom Tab Navigator
   NewsDetail: { article: NewsArticle };
+  CompanyInfo: undefined;
 };
 
 // Define params for your new screens
@@ -35,8 +36,14 @@ export type BottomTabParamList = {
   EventsTab: undefined; // For NetworkingEventScreen
   ChatbotTab: undefined; // New Chatbot Tab
   DiscoverTab: undefined; // Placeholder, linked to search icon
-  MessagesTab: undefined; // Placeholder
+  MessagesTab: {
+    screen?: keyof MessagesStackParamList;
+    params?: {
+      conversationId?: number;
+    }
+  };
   ProfileTab: undefined; // Placeholder
+  MatchesTab: undefined;
 };
 
 // Props for screens
@@ -65,3 +72,18 @@ export type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Wel
 export type DiscoverTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'DiscoverTab'>;
 export type MessagesTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'MessagesTab'>;
 export type ProfileTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'ProfileTab'>;
+
+// For the messages stack navigator
+export type MessagesStackParamList = {
+  MessagesList: undefined;
+  Conversation: {
+    conversationId: number;
+    channelId?: string;
+    otherUser?: {
+      id: number;
+      name: string;
+      position?: string;
+      imageUrl?: string;
+    };
+  };
+};
