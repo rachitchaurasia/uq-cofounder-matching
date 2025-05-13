@@ -13,6 +13,8 @@ import { LookingScreen } from '../screens/LookingScreen';
 import { OfferScreen } from '../screens/OfferScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { RegistrationScreen } from '../screens/RegistrationScreen';
+import AppTabs from './AppTabs';
+import { NewsDetailScreen } from '../screens/NewsDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -27,6 +29,7 @@ export const RootNavigator = () => {
             backgroundColor: 'transparent'
           }
         }}
+        initialRouteName="SignIn"
       >
         <Stack.Screen 
           name="SignIn" 
@@ -71,6 +74,15 @@ export const RootNavigator = () => {
         <Stack.Screen 
         name="Registration" 
         component={RegistrationScreen} 
+        />
+        <Stack.Screen 
+        name="MainApp" 
+        component={AppTabs} 
+        />
+        <Stack.Screen 
+        name="NewsDetail" 
+        component={NewsDetailScreen}
+        options={{ headerShown: true, title: 'Article Details' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
