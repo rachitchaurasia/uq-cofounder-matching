@@ -20,9 +20,7 @@
     "experiments": {
       "tsconfigPaths": true
     },
-    "plugins": [
-      "react-native-reanimated"
-    ],
+    "plugins": [],
     "newArchEnabled": true,
     "jsEngine": "hermes"
   }

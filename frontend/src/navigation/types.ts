@@ -77,7 +77,7 @@ export type ProfileTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'Pr
 export type MessagesStackParamList = {
   MessagesList: undefined;
   Conversation: {
-    conversationId: number;
+    conversationId: string;
     channelId?: string;
     otherUser?: {
       id: number;

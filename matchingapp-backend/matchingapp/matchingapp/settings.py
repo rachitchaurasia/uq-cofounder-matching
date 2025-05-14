@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'matching_algorithm',
-    'userprofile'
+    'userprofile',
 ]
 
 MIDDLEWARE = [
@@ -194,5 +194,4 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-STREAM_API_KEY = '6wdyjtcp4ssp'
-STREAM_API_SECRET = 'hfa5ad5wt2w8ks2w8ufjffhhawzdm74fxzm43kk9gqpe9bjn7bkuyn5c7mg4mn9u'
+

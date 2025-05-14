@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; // Adjust path if needed
 import { API_BASE_URL } from '../config'; // Adjust path if needed
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
-import { useStreamChat } from '../context/StreamChatContext';
+import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Registration'>;
 
@@ -26,12 +26,37 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { setUserAndConnect } = useStreamChat();
-
   // Basic email validation (optional, enhance if needed)
   const isEmailValid = (emailToTest: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(emailToTest);
+  };
+
+  // Connect to Supabase with user ID
+  const connectToSupabase = async (userId: string) => {
+    try {
+      // Sign up user in Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            user_id: userId,
+          }
+        }
+      });
+      
+      if (error) {
+        console.error("Supabase auth error:", error);
+        return false;
+      }
+      
+      console.log("Supabase connection established");
+      return true;
+    } catch (error) {
+      console.error("Error connecting to Supabase:", error);
+      return false;
+    }
   };
 
   // --- Auto-login function ---
@@ -63,7 +88,7 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
       await AsyncStorage.setItem('authToken', authToken);
       console.log('Auto-login successful, token stored.');
       
-      // Add this section - Fetch user profile and connect to Stream Chat
+      // Add this section - Fetch user profile and connect to Supabase
       try {
         const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
           headers: {
@@ -75,12 +100,8 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
         if (profileResponse.ok) {
           const userData = await profileResponse.json();
           
-          // Connect to Stream Chat with user data
-          await setUserAndConnect(
-            userData.user.id.toString(),
-            `${userData.user.first_name || ''} ${userData.user.last_name || ''}`.trim() || email,
-            userData.avatar
-          );
+          // Connect to Supabase with user data
+          await connectToSupabase(userData.user.id.toString());
         }
       } catch (profileErr) {
         console.error("Error fetching profile after registration:", profileErr);

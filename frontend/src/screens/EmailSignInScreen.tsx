@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
-import { useStreamChat } from '../context/StreamChatContext';
+import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>;
 
@@ -15,7 +15,6 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const { setUserAndConnect } = useStreamChat();
 
   // Basic email validation regex
   const isEmailValid = (emailToTest: string): boolean => {
@@ -46,6 +45,13 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
       console.error('Error fetching profile:', error);
       throw error;
     }
+  };
+
+  // Connect to Supabase with user ID
+  const connectToSupabase = async (userId: string) => {
+    // No need to authenticate, just store user ID if needed
+    console.log("User logged in with ID:", userId);
+    return true;
   };
 
   const handleSignIn = async () => {
@@ -103,6 +109,19 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
         setError('Failed to save login info');
         setLoading(false);
         return;
+      }
+      
+      // Get user profile
+      const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
+        headers: {
+          'Authorization': `Token ${data.key}`,
+        },
+      });
+      
+      if (profileResponse.ok) {
+        const userData = await profileResponse.json();
+        // Connect to Supabase
+        await connectToSupabase(userData.user.id.toString());
       }
       
       // Navigate successfully

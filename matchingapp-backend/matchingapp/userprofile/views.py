@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
 # Create your views here.
 
@@ -91,3 +92,14 @@ def generate_stream_chat_token(request):
     token = f"{header_base64}.{payload_base64}.{signature_base64}"
     
     return JsonResponse({'token': token})
+
+class PublicProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
+        try:
+            profile = UserProfile.objects.get(user_id=user_id)
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=404)

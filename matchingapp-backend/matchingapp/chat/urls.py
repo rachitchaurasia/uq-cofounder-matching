@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import StreamChatTokenView, CreateChatChannelView
+from . import views
 
 urlpatterns = [
-    path('token/', StreamChatTokenView.as_view(), name='stream-chat-token'),
-    path('channel/', CreateChatChannelView.as_view(), name='create-chat-channel'),
-] 
+    # Add your chat app URLs here
+    # For example:
+    # path('messages/', views.message_list, name='message_list'),
+]
