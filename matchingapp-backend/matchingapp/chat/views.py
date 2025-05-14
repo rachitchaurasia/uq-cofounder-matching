@@ -6,8 +6,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from stream_chat import StreamChat
 
-# Initialize Stream Chat client
-stream_client = StreamChat(api_key=settings.STREAM_API_KEY, api_secret=settings.STREAM_API_SECRET)
+# Initialize Stream Chat client with API key and secret
+stream_client = StreamChat(api_key='6wdyjtcp4ssp', 
+                         api_secret='hfa5ad5wt2w8ks2w8ufjffhhawzdm74fxzm43kk9gqpe9bjn7bkuyn5c7mg4mn9u')
 
 class StreamChatTokenView(APIView):
     permission_classes = [IsAuthenticated]
@@ -20,8 +21,6 @@ class StreamChatTokenView(APIView):
             "id": str(user.id),
             "name": f"{user.first_name} {user.last_name}".strip() or user.username,
             "email": user.email,
-            # Add image if profile has one
-            "image": getattr(user.profile, 'avatar', None) or "https://getstream.io/random_png/?id=" + str(user.id),
         })
         
         # Generate token for the user
@@ -29,7 +28,7 @@ class StreamChatTokenView(APIView):
         
         return Response({
             "token": token,
-            "api_key": settings.STREAM_API_KEY,
+            "api_key": '6wdyjtcp4ssp',
             "user_id": str(user.id)
         })
 

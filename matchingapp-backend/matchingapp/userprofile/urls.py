@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserProfileView
+from .views import UserProfileView, generate_stream_chat_token
 
 app_name = 'userprofile'
 
@@ -8,4 +8,5 @@ urlpatterns = [
     path('me/', UserProfileView.as_view(), name='profile-me'),
     # Add other profile-related URLs here if needed (e.g., public profile view?)
     # path('<int:user_id>/', PublicProfileView.as_view(), name='profile-public'),
+    path('api/chat/token/', generate_stream_chat_token, name='stream-chat-token'),
 ]

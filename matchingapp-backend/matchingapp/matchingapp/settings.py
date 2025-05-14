@@ -194,5 +194,5 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-STREAM_API_KEY = '8qb2wrp247rb'
-STREAM_API_SECRET = 'kkvu5j9kgzdvw4kfayv93y2hsr9qrtuc3ykmsuqd8v49yspzda8sjf2cubr4hrhh'
+STREAM_API_KEY = '6wdyjtcp4ssp'
+STREAM_API_SECRET = 'hfa5ad5wt2w8ks2w8ufjffhhawzdm74fxzm43kk9gqpe9bjn7bkuyn5c7mg4mn9u'
