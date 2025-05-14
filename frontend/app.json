@@ -14,13 +14,16 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.uqcofoundermatcher"
     },
     "experiments": {
       "tsconfigPaths": true
     },
-    "plugins": [],
+    "plugins": [
+      "react-native-reanimated"
+    ],
     "newArchEnabled": true,
     "jsEngine": "hermes"
   }
-} 
+}

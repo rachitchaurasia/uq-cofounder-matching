@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, ActivityIndicator, View, Platform, Text } from 'react-native';
+import { SafeAreaView, StyleSheet, ActivityIndicator, View, Text, Platform } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessagesStackParamList } from '../navigation/types';
@@ -7,89 +7,165 @@ import { useStreamChat } from '../context/StreamChatContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 
+// Import directly rather than dynamically
+import {
+  Chat,
+  Channel,
+  MessageList,
+  MessageInput,
+  OverlayProvider,
+} from 'stream-chat-react-native';
+
 type ConversationScreenRouteProp = RouteProp<MessagesStackParamList, 'Conversation'>;
 
 export const ConversationScreen: React.FC = () => {
+  // For web platform, show a placeholder
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webContainer}>
+        <Text style={styles.errorText}>
+          Chat functionality is only available in the mobile app.
+        </Text>
+        <Text style={styles.loadingText}>
+          Please use our mobile app to access the complete chat experience.
+        </Text>
+      </View>
+    );
+  }
+
   const route = useRoute<ConversationScreenRouteProp>();
   const navigation = useNavigation<NativeStackNavigationProp<MessagesStackParamList>>();
-  const { client } = useStreamChat();
+  const { client, setUserAndConnect, connecting } = useStreamChat();
   const [channel, setChannel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { conversationId, channelId, otherUser } = route.params;
+  const { conversationId, channelId, otherUser } = route.params || {};
 
+  // Set title
+  useEffect(() => {
+    if (otherUser?.name) {
+      navigation.setOptions({ title: otherUser.name });
+    }
+  }, [otherUser, navigation]);
+
+  // Try to initialize the channel
   useEffect(() => {
     const setupChannel = async () => {
       try {
-        if (!client || Platform.OS === 'web') {
-          console.error('Stream Chat client not initialized or on web');
+        if (Platform.OS === 'web') {
+          console.log('Chat is not available on web');
           setLoading(false);
           return;
         }
 
-        // Set screen title with the other user's name
-        if (otherUser) {
-          navigation.setOptions({ title: otherUser.name });
+        if (!client) {
+          console.error('Stream Chat client not initialized');
+          setLoading(false);
+          return;
         }
 
+        // Only try to connect if the user isn't already connected
+        if (!client.userID) {
+          console.log('User not connected, attempting to connect...');
+          // Get user profile
+          const token = await AsyncStorage.getItem('authToken');
+          if (!token) {
+            throw new Error('No auth token found');
+          }
+          
+          try {
+            const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
+              headers: {
+                'Authorization': `Token ${token}`,
+              },
+            });
+            
+            if (!profileResponse.ok) throw new Error('Failed to fetch profile');
+            const profileData = await profileResponse.json();
+            
+            // Connect user to Stream Chat
+            await setUserAndConnect(
+              profileData.user.id.toString(),
+              `${profileData.user.first_name} ${profileData.user.last_name}`,
+              profileData.avatar
+            );
+          } catch (e) {
+            console.error('Failed to connect user:', e);
+          }
+        } else {
+          console.log('User already connected:', client.userID);
+        }
+
+        // Now create/get the channel
         try {
-          // Create or get the channel
-          const channelClient = client.channel('messaging', channelId || `chat-${conversationId}`);
+          // We need a channel ID to proceed
+          const tempChannelId = channelId || `chat-${conversationId}-${Date.now()}`;
+          const channelClient = client.channel('messaging', tempChannelId);
+          
+          // Initialize with other user - Fix the members format
+          if (otherUser) {
+            await channelClient.create({
+              members: { [client.userID]: {}, [otherUser.id.toString()]: {} }
+            });
+          }
+          
           await channelClient.watch();
           setChannel(channelClient);
         } catch (error) {
-          console.error('Error watching channel:', error);
-          // Create a new channel as fallback
-          const fallbackChannel = client.channel('messaging', `fallback-${Date.now()}`);
-          await fallbackChannel.create();
-          setChannel(fallbackChannel);
+          console.error('Error creating channel:', error);
         }
       } catch (error) {
-        console.error('Error setting up Stream Chat channel:', error);
+        console.error('Error setting up chat:', error);
       } finally {
         setLoading(false);
       }
     };
 
     setupChannel();
-  }, [client, conversationId, channelId, navigation, otherUser]);
+  }, [client, conversationId, channelId, otherUser, setUserAndConnect]);
 
-  if (loading) {
+  if (loading || connecting) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#9C27B0" />
+        <Text style={styles.loadingText}>Setting up conversation...</Text>
       </View>
     );
   }
 
-  if (Platform.OS === 'web') {
+  // Missing components check
+  if (!Chat || !Channel || !MessageList || !MessageInput || !OverlayProvider) {
     return (
-      <View style={styles.webContainer}>
-        <Text>Chat is available only in the mobile app</Text>
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>
+          Unable to load chat components. Please restart the app.
+        </Text>
       </View>
     );
   }
 
-  // Only import Stream Chat components on mobile
-  const { Chat, Channel, MessageList, MessageInput, OverlayProvider } = require('stream-chat-react-native');
+  // Client or channel not available
+  if (!client || !channel) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>
+          Unable to connect to chat. Please try again later.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {channel && client ? (
-        <OverlayProvider>
-          <Chat client={client}>
-            <Channel channel={channel}>
-              <View style={styles.chatContainer}>
-                <MessageList />
-                <MessageInput />
-              </View>
-            </Channel>
-          </Chat>
-        </OverlayProvider>
-      ) : (
-        <View style={styles.webContainer}>
-          <Text>Failed to load chat. Please try again later.</Text>
-        </View>
-      )}
+      <OverlayProvider>
+        <Chat client={client}>
+          <Channel channel={channel}>
+            <View style={styles.chatContainer}>
+              <MessageList />
+              <MessageInput />
+            </View>
+          </Channel>
+        </Chat>
+      </OverlayProvider>
     </SafeAreaView>
   );
 };
@@ -105,6 +181,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
   },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+  },
   chatContainer: {
     flex: 1,
     backgroundColor: '#F5F7FA',
@@ -114,5 +194,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
-  }
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    padding: 20,
+  },
+  errorText: {
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
 }); 
