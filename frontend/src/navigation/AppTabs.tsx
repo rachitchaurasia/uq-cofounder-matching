@@ -8,6 +8,7 @@ import { NetworkingEventScreen } from '../screens/NetworkingEventScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { MatchesScreen } from '../screens/MatchesScreen';
 import { MessagesNavigator } from './MessagesNavigator';
+import ChatbotScreen from '../screens/ChatbotScreen'; // Import the new ChatbotScreen
 // Placeholder screens for other tabs
 const PlaceholderScreen = ({ route }: any) => {
   const { View, Text } = require('react-native');
@@ -25,7 +26,7 @@ const AppTabs = () => {
       <Tab.Screen name="HomeTab" component={NewsFeedScreen} />
       <Tab.Screen name="EventsTab" component={NetworkingEventScreen} />
       <Tab.Screen name="MatchesTab" component={MatchesScreen} />
-      <Tab.Screen name="ChatbotTab" component={PlaceholderScreen} />
+      <Tab.Screen name="ChatbotTab" component={ChatbotScreen} />
       <Tab.Screen name="MessagesTab" component={MessagesNavigator} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} />
     </Tab.Navigator>
