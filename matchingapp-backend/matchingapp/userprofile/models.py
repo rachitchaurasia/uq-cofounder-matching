@@ -53,6 +53,8 @@ class UserProfile(models.Model):
     looking_for = models.TextField(blank=True, null=True)
     offers = models.TextField(blank=True, null=True, help_text="Comma-separated things user can offer") # From OfferScreen
     
+    # Add this field to your UserProfile model
+    phone = models.CharField(max_length=20, blank=True, null=True)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

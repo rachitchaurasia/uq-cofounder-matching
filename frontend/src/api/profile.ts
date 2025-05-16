@@ -48,3 +48,54 @@ export const updateProfile = async (payload: Record<string, any>): Promise<boole
     throw err; // Re-throw the error so the calling component can handle it
   }
 };
+
+export const getProfile = async (): Promise<any> => {
+  const token = await AsyncStorage.getItem('authToken');
+  if (!token) {
+    throw new Error('No auth token found');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch profile: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error("Error fetching profile:", err);
+    throw err;
+  }
+};
+
+export const runMatching = async (): Promise<any> => {
+  const token = await AsyncStorage.getItem('authToken');
+  if (!token) {
+    throw new Error('No auth token found');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/matching/run/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to run matching: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error("Error running matching algorithm:", err);
+    throw err;
+  }
+};

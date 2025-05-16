@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)8gzskg99(l2y^(of77oqo^k!^yt^k((dl%1_l5(0+^q&6f9-e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '10.0.2.2']
 
 
 # Application definition
@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'matching_algorithm',
-    'userprofile'
+    'userprofile',
 ]
 
 MIDDLEWARE = [
@@ -168,3 +168,32 @@ ACCOUNT_EMAIL_REQUIRED=True
 
 # --- CORS Settings ---
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+       "http://localhost:8081",
+       "http://10.0.2.2:8081",
+       "http://127.0.0.1:8081",
+       "exp://192.168.159.250:8081",
+       "https://192.168.159.250:8081"
+   ]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+

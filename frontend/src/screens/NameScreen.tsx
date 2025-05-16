@@ -46,7 +46,7 @@ export const NameScreen = () => {
       const success = await updateProfile(payload);
 
       if (success) {
-        navigation.navigate("Role");
+        navigation.navigate("CompanyInfo");
       }
     } catch (error: any) {
       console.error("Failed to save name:", error);

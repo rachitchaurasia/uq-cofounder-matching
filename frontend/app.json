@@ -14,7 +14,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.uqcofoundermatcher"
     },
     "experiments": {
       "tsconfigPaths": true
@@ -23,4 +24,4 @@
     "newArchEnabled": true,
     "jsEngine": "hermes"
   }
-} 
+}

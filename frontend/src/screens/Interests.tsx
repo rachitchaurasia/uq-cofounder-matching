@@ -35,25 +35,6 @@ export const Interests = () => {
   const [isAddingInterest, setIsAddingInterest] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // --- State Persistence Handling (Optional but good practice) ---
-  // Using component state directly often works fine with react-navigation's stack
-  // behaviour as screens aren't always unmounted on back navigation.
-  // If state loss occurs, uncomment and adapt the useFocusEffect hook below.
-
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     // When screen comes into focus, restore state
-  //     setAvailableInterests(persistentAvailableInterests);
-  //     setSelectedInterests(persistentSelectedInterests);
-  //
-  //     return () => {
-  //       // Optional: When screen goes out of focus, save state
-  //       // This can sometimes be prone to race conditions depending on navigation timing
-  //       // persistentAvailableInterests = [...availableInterests];
-  //       // persistentSelectedInterests = [...selectedInterests];
-  //     };
-  //   }, [])
-  // );
 
 
   const toggleInterest = (interest: string) => {
@@ -85,20 +66,20 @@ export const Interests = () => {
   const handleContinue = async () => {
     setLoading(true);
     try {
-        const payload = {
-            interests: selectedInterests.join(',')
-        };
-        console.log("Saving Interests:", payload);
-        const success = await updateProfile(payload);
-
-        if (success) {
-          navigation.navigate('Looking');
-        }
-    } catch (error: any) {
-         console.error("Failed to save interests:", error);
-         Alert.alert("Save Failed", error.message || "Could not save your interests. Please try again.");
+      // Ensure a more comprehensive payload that includes all selected interests
+      const payload = {
+        interests: selectedInterests.join(','),
+      };
+      
+      // Make sure to await the updateProfile call
+      await updateProfile(payload);
+      console.log('Successfully saved interests:', selectedInterests);
+      navigation.navigate('Looking'); // Continue to next screen
+    } catch (error) {
+      console.error('Failed to save interests:', error);
+      Alert.alert('Error', 'Failed to save your interests. Please try again.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 

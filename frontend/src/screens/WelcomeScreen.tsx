@@ -51,7 +51,7 @@ export const WelcomeScreen = () => {
 
   const handleContinue = () => {
     console.log('Navigate to Welcome screen');
-    // navigation.navigate('Home'); // Example navigation target
+    navigation.navigate('MainApp'); // Example navigation target
   };
 
   return (

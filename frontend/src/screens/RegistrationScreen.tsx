@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; // Adjust path if needed
 import { API_BASE_URL } from '../config'; // Adjust path if needed
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Registration'>;
 
@@ -31,43 +32,90 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(emailToTest);
   };
 
+  // Connect to Supabase with user ID
+  const connectToSupabase = async (userId: string) => {
+    try {
+      // Sign up user in Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            user_id: userId,
+          }
+        }
+      });
+      
+      if (error) {
+        console.error("Supabase auth error:", error);
+        return false;
+      }
+      
+      console.log("Supabase connection established");
+      return true;
+    } catch (error) {
+      console.error("Error connecting to Supabase:", error);
+      return false;
+    }
+  };
+
   // --- Auto-login function ---
   const attemptAutoLogin = async () => {
-      console.log(`Attempting auto-login for ${email}`);
-      try {
-          const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              body: JSON.stringify({ username: email, email: email, password: password }),
-          });
-          const loginData = await loginResponse.json();
+    console.log(`Attempting auto-login for ${email}`);
+    try {
+      const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ username: email, email: email, password: password }),
+      });
+      const loginData = await loginResponse.json();
 
-          if (!loginResponse.ok) {
-              console.error("Auto-login failed:", loginData);
-              // Show error but let user proceed to login manually later
-              Alert.alert("Registration Successful", "Account created, but auto-login failed. Please sign in manually.");
-              navigation.navigate('EmailSignIn'); // Go to login screen
-              return false;
-          }
-
-          const authToken = loginData.key;
-          if (!authToken) {
-              console.error("Auto-login successful, but token not received.");
-              Alert.alert("Registration Successful", "Account created, but failed to retrieve session. Please sign in manually.");
-              navigation.navigate('EmailSignIn');
-              return false;
-          }
-
-          await AsyncStorage.setItem('authToken', authToken);
-          console.log('Auto-login successful, token stored.');
-          return true; // Indicate success
-
-      } catch (loginErr: any) {
-          console.error("Error during auto-login fetch:", loginErr);
-          Alert.alert("Registration Successful", "Account created, but a network error occurred during auto-login. Please sign in manually.");
-          navigation.navigate('EmailSignIn');
-          return false;
+      if (!loginResponse.ok) {
+        console.error("Auto-login failed:", loginData);
+        Alert.alert("Registration Successful", "Account created, but auto-login failed. Please sign in manually.");
+        navigation.navigate('EmailSignIn');
+        return false;
       }
+
+      const authToken = loginData.key;
+      if (!authToken) {
+        console.error("Auto-login successful, but token not received.");
+        Alert.alert("Registration Successful", "Account created, but failed to retrieve session. Please sign in manually.");
+        navigation.navigate('EmailSignIn');
+        return false;
+      }
+
+      await AsyncStorage.setItem('authToken', authToken);
+      console.log('Auto-login successful, token stored.');
+      
+      // Add this section - Fetch user profile and connect to Supabase
+      try {
+        const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
+          headers: {
+            'Authorization': `Token ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (profileResponse.ok) {
+          const userData = await profileResponse.json();
+          
+          // Connect to Supabase with user data
+          await connectToSupabase(userData.user.id.toString());
+        }
+      } catch (profileErr) {
+        console.error("Error fetching profile after registration:", profileErr);
+        // Continue anyway since registration and login were successful
+      }
+      
+      return true;
+
+    } catch (loginErr) {
+      console.error("Error during auto-login fetch:", loginErr);
+      Alert.alert("Registration Successful", "Account created, but a network error occurred during auto-login. Please sign in manually.");
+      navigation.navigate('EmailSignIn');
+      return false;
+    }
   }
 
   const handleRegister = async () => {

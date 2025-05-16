@@ -77,20 +77,19 @@ export const Expertise = () => {
   const handleContinue = async () => {
     setLoading(true);
     try {
-        const payload = {
-            skills: selectedSkills.join(',')
-        };
-        console.log("Saving Expertise:", payload);
-        const success = await updateProfile(payload);
-
-        if (success) {
-          navigation.navigate('Interests');
-        }
-    } catch (error: any) {
-         console.error("Failed to save expertise:", error);
-         Alert.alert("Save Failed", error.message || "Could not save your expertise. Please try again.");
+      const payload = {
+        skills: selectedSkills.join(','),
+        skill_categories: selectedSkills?.join(',') // If you collect categories
+      };
+      
+      await updateProfile(payload);
+      console.log('Successfully saved skills:', selectedSkills);
+      navigation.navigate('Interests');
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+      Alert.alert('Error', 'Failed to save your expertise. Please try again.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 

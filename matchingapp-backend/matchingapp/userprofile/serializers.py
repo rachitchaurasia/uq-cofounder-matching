@@ -30,7 +30,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'skills', 'skill_categories', 'languages', 'interests',
             'startup_industries', 'startup_goals',
             'certifications', 'courses', 'recommendations_count', 'volunteer_experience',
-            'role', 'show_role_on_profile', 'offers', # Add new fields
+            'role', 'show_role_on_profile', 'offers', 'phone', # Add new fields
             # Add 'looking_for' if added to model
             'created_at', 'updated_at'
         ]
