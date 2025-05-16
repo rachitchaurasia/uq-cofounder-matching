@@ -38,8 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'user_management',
-    'chat'
+    'chat',
     'api',
     'rest_framework',
     'rest_framework.authtoken',
@@ -157,7 +156,6 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 SITE_ID = 1
 
 # User account settings
-AUTH_USER_MODEL = 'user_management.CustomUser'
 ACCOUNT_LOGIN_METHOD = 'email'
 ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_SIGNUP_FIELDS = ['email', 'password']
