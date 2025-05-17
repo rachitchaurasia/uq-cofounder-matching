@@ -15,7 +15,7 @@
 # but can be good practice in a monorepo root.
 frontend/node_modules/
 matchingapp-backend/node_modules/
-
+web-dashboard/node_modules/
 # Build/dist folders (if any at root)
 # build/
 # dist/

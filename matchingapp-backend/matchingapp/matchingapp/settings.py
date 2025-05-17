@@ -142,11 +142,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
+         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication'
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly'
+    ),
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer', # Useful for testing in browser
+    ],
+    # Important for React to get CSRF token if not making a GET request first to a form
+    'CSRF_COOKIE_NAME': "csrftoken",
+    'CSRF_HEADER_NAME': 'HTTP_X_CSRFTOKEN'
 }
 
 # --- dj-rest-auth Settings ---
@@ -169,10 +178,10 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
        "http://localhost:8081",
-       "http://10.0.2.2:8081",
-       "http://127.0.0.1:8081",
-       "exp://192.168.159.250:8081",
-       "https://192.168.159.250:8081"
+       "http://10.0.2.2:8000",
+       "http://127.0.0.1:8000",
+       "http://localhost:3000",
+        "http://127.0.0.1:3000",
    ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -194,4 +203,13 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# CSRF Settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000", # Allow CSRF for your React app's origin
+    "http://127.0.0.1:3000",
+]
+CSRF_COOKIE_HTTPONLY = False # React needs to be able to read the CSRF token from the cookie to send it in headers for POST/PUT/DELETE
+CSRF_COOKIE_SAMESITE = 'Lax' # Or 'Strict' if appropriate
+SESSION_COOKIE_SAMESITE = 'Lax' # Important for cross-site requests with cookies
 

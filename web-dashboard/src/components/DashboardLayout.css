@@ -1,0 +1,101 @@
+/* Inspired by ProfileScreen.tsx and a typical dashboard layout */
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #F5F7FA; /* Similar to ProfileScreen background */
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 25px;
+  height: 70px; /* Increased height */
+  background-color: #FFFFFF; /* White header */
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-title-container {
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  height: 40px; /* Adjust as needed */
+  margin-right: 15px;
+}
+
+.header-title-link {
+  text-decoration: none;
+}
+
+.header-title-link h1 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333; /* Dark text for title */
+  margin: 0;
+}
+
+
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+  gap: 25px; /* Space between nav items */
+}
+
+.dashboard-nav a {
+  text-decoration: none;
+  color: #555; /* Subtler link color */
+  font-size: 16px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dashboard-nav a:hover,
+.dashboard-nav a.active { /* You might want to add active styling via NavLink later */
+  background-color: #e9ecef; /* Light background on hover/active */
+  color: #6D28D9; /* Primary color for active/hover link */
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.logout-button {
+  background-color: #9C27B0; /* Purple, similar to ProfileScreen buttons */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 25px; /* Rounded like ProfileScreen buttons */
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.logout-button:hover {
+  background-color: #7b1fa2; /* Darker purple */
+}
+
+.dashboard-main-content {
+  flex-grow: 1;
+  padding: 25px;
+  background-color: #F5F7FA; /* Main content area background */
+}
+
+.dashboard-footer {
+  padding: 15px 25px;
+  text-align: center;
+  background-color: #FFFFFF; /* White footer */
+  border-top: 1px solid #e0e0e0;
+  color: #777;
+  font-size: 14px;
+}
