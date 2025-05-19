@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollVi
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { updateProfile } from "../api/profile";
+import { supabase } from "../supabaseClient";
 
 const backIcon = require("../assets/back-button.png"); 
 
@@ -55,15 +55,31 @@ export const WorkingScreen = () => {
   const handleContinue = async () => {
     setLoading(true);
     try {
-        const payload = {
-            startup_industries: selectedFields.join(',')
-        };
-        console.log("Saving Working On Fields:", payload);
-        const success = await updateProfile(payload);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        return;
+      }
 
-        if (success) {
-          navigation.navigate('Offer');
-        }
+      const updates = {
+        startup_industries: selectedFields,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save working on fields to Supabase:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Successfully saved working on fields to Supabase profile:', selectedFields);
+      navigation.navigate('Offer');
+        
     } catch (error: any) {
          console.error("Failed to save working on fields:", error);
          Alert.alert("Save Failed", error.message || "Could not save what you're working on. Please try again.");

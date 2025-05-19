@@ -13,8 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; // Adjust path if needed
-import { API_BASE_URL } from '../config'; // Adjust path if needed
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Registration'>;
@@ -25,6 +23,8 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
   const [password2, setPassword2] = useState(''); // Confirmation password
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // const [firstName, setFirstName] = useState(''); // Example if collecting name here
+  // const [lastName, setLastName] = useState('');   // Example if collecting name here
 
   // Basic email validation (optional, enhance if needed)
   const isEmailValid = (emailToTest: string): boolean => {
@@ -32,7 +32,8 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(emailToTest);
   };
 
-  // Connect to Supabase with user ID
+  // Connect to Supabase with user ID - NO LONGER NEEDED, REMOVE THIS FUNCTION
+  /*
   const connectToSupabase = async (userId: string) => {
     try {
       // Sign up user in Supabase
@@ -41,7 +42,7 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
         password: password,
         options: {
           data: {
-            user_id: userId,
+            user_id: userId, // This was linking to Django user ID, not needed with pure Supabase auth
           }
         }
       });
@@ -58,8 +59,10 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
       return false;
     }
   };
+  */
 
-  // --- Auto-login function ---
+  // --- Auto-login function --- - NO LONGER NEEDED, REMOVE THIS FUNCTION
+  /*
   const attemptAutoLogin = async () => {
     console.log(`Attempting auto-login for ${email}`);
     try {
@@ -101,7 +104,7 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
           const userData = await profileResponse.json();
           
           // Connect to Supabase with user data
-          await connectToSupabase(userData.user.id.toString());
+          // await connectToSupabase(userData.user.id.toString()); // Old logic
         }
       } catch (profileErr) {
         console.error("Error fetching profile after registration:", profileErr);
@@ -117,6 +120,7 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
       return false;
     }
   }
+  */
 
   const handleRegister = async () => {
     setError(null);
@@ -141,61 +145,62 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
 
     try {
-      console.log(`Attempting registration for ${email} at ${API_BASE_URL}/api/auth/registration/`);
-      const response = await fetch(`${API_BASE_URL}/api/auth/registration/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-            email: email,
-            username: email,      // Send email as username
-            password1: password,  // Send password as password1
-            password2: password2  // Keep password2 for confirmation
-        }),
+      // Directly sign up with Supabase
+      // If you collect first name / last name on this screen, pass them in options.data
+      // e.g., data: { full_name: `${firstName} ${lastName}` }
+      // Our DB trigger will pick up 'email', 'full_name', 'avatar_url' from raw_user_meta_data
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            // If you have full_name or other initial data from this screen, add it here.
+            // For example, if you have a 'fullName' state:
+            // full_name: fullName 
+          }
+        }
       });
 
-      const data = await response.json();
-      console.log("Registration response status:", response.status);
-      console.log("Registration response data:", data);
-
-      if (!response.ok) {
-        let errorMessage = `Registration failed (Status: ${response.status})`;
-         if (data.email && data.email.length > 0) {
-            errorMessage = `Email: ${data.email[0]}`;
-        } else if (data.username && data.username.length > 0) { // Check for username errors too
-            errorMessage = `Username: ${data.username[0]}`;
-        } else if (data.password1 && data.password1.length > 0) { // Check password1 errors
-             errorMessage = `Password: ${data.password1[0]}`;
-        } else if (data.password && data.password.length > 0) { // Fallback check for general password errors
-             errorMessage = `Password: ${data.password[0]}`;
-        } else if (data.detail) {
-            errorMessage = data.detail;
+      if (signUpError) {
+        console.error("Supabase Registration error:", signUpError.message);
+        // Consider mapping common Supabase errors to user-friendly messages
+        if (signUpError.message.includes("User already registered")) {
+             setError("This email is already registered. Please try logging in.");
+        } else if (signUpError.message.includes("Password should be at least 6 characters")) {
+            setError("Password is too short. It must be at least 6 characters."); // Supabase default is 6
         } else {
-             const errors = Object.entries(data).map(([key, value]) =>
-                `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
-             ).join('\n');
-             if (errors) errorMessage = errors;
+            setError(signUpError.message || "An error occurred during registration.");
         }
-        throw new Error(errorMessage);
+        setLoading(false);
+        return;
       }
 
-      console.log('Registration successful:', data);
+      // According to Supabase docs, if signUp is successful and email confirmation is OFF,
+      // data.user will contain the user and data.session the session.
+      // If email confirmation is ON, data.user will contain the user, but data.session will be null.
+      // The user will need to confirm their email before they can log in.
+      // The onAuthStateChange listener should handle the session establishment.
 
-      // --- Step 2: Auto-Login ---
-      const loginSuccess = await attemptAutoLogin();
+      console.log('Supabase Registration successful:', signUpData);
 
-      if (loginSuccess) {
-          // Navigate to the FIRST screen of the onboarding flow
-          // Use replace to prevent going back to registration
-          navigation.replace('Name'); // <<< Navigate to Name screen first
+      // If user creation was successful, navigate to NameScreen to start onboarding.
+      // The onAuthStateChange listener in RootNavigator will manage the session state.
+      // If email confirmation is required, the user won't be able to fully use the app 
+      // (e.g. sign in again after logout) until confirmed, but can proceed with initial profile setup.
+      if (signUpData.user) {
+        // navigation.replace('Name');  // REMOVE THIS: RootNavigator now handles initial route based on onboarding status
+        // The onAuthStateChange will trigger, RootNavigator will fetch profile,
+        // see onboarding_completed is false, and set initial route to Name.
+        console.log("User signed up. RootNavigator will handle navigation.");
+      } else {
+        // This case should ideally not be reached if signUpError is null,
+        // but as a fallback if user is somehow not created without an error.
+        setError("Could not create user. Please try again.");
       }
-      // If login failed, attemptAutoLogin already handled navigation/alert
 
-    } catch (err: any) {
+    } catch (err: any) { // Catch any other unexpected errors
       const message = err.message || 'An unknown error occurred during registration.';
-      console.error("Registration error:", message, err);
+      console.error("Unexpected Registration error:", message, err);
       setError(message);
     } finally {
       setLoading(false);
