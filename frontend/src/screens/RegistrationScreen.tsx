@@ -150,7 +150,7 @@ export const RegistrationScreen: React.FC<Props> = ({ navigation }) => {
       // e.g., data: { full_name: `${firstName} ${lastName}` }
       // Our DB trigger will pick up 'email', 'full_name', 'avatar_url' from raw_user_meta_data
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: email,
+            email: email,
         password: password,
         options: {
           data: {

@@ -37,10 +37,8 @@ export type BottomTabParamList = {
   ChatbotTab: undefined; // New Chatbot Tab
   DiscoverTab: undefined; // Placeholder, linked to search icon
   MessagesTab: {
-    screen?: keyof MessagesStackParamList;
-    params?: {
-      conversationId?: number;
-    }
+    screen?: keyof MessagesStackParamList; // e.g., 'Conversation' or 'MessagesList'
+    params?: MessagesStackParamList[keyof MessagesStackParamList]; // Allows params for any screen in MessagesStack
   };
   ProfileTab: undefined; // Placeholder
   MatchesTab: undefined;
@@ -80,7 +78,7 @@ export type MessagesStackParamList = {
     conversationId: string;
     channelId?: string;
     otherUser?: {
-      id: number;
+      id: string;
       name: string;
       position?: string;
       imageUrl?: string;

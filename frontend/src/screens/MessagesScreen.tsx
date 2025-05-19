@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
+// import AsyncStorage from '@react-native-async-storage/async-storage'; // No longer needed
+// import { API_BASE_URL } from '../config'; // No longer needed
 import { getConversations } from '../services/ChatService';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { BottomTabParamList } from '../navigation/types';
+import { supabase } from '../supabaseClient'; // Import Supabase
+
+// Define the structure of a conversation object coming from ChatService/Supabase
+interface SupabaseConversation {
+  id: string; // chat_room_id
+  participants: string[];
+  lastMessage?: string;
+  lastMessageTime?: string | number | Date; // Can be a string, number (timestamp), or Date object
+}
+
+type ConversationUser = {
+  id: string; // Supabase user ID is UUID (string)
+  name: string;
+  avatar?: string;
+};
 
 type Conversation = {
-  id: string;
-  otherUser: {
-    id: number;
-    name: string;
-    avatar?: string;
-  };
+  id: string; // Chat room ID
+  otherUser: ConversationUser;
   lastMessage: string;
   lastMessageTime: Date;
 };
@@ -21,161 +32,121 @@ type Conversation = {
 export const MessagesScreen: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // const [currentUserId, setCurrentUserId] = useState<string | null>(null); // No longer needed as state
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
 
   const fetchConversations = async () => {
+    setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        console.log('No Supabase user signed in for MessagesScreen');
         setLoading(false);
+        setConversations([]); // Clear conversations if no user
         return;
       }
+      const currentUserId = currentUser.id;
       
-      // Get current user profile
-      const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
-      });
+      // Get conversations from Supabase via ChatService
+      const supabaseConversations: SupabaseConversation[] = await getConversations(currentUserId);
+      console.log("Fetched Supabase conversations raw:", supabaseConversations);
       
-      if (!profileResponse.ok) {
-        setLoading(false);
-        return;
-      }
-      
-      const profileData = await profileResponse.json();
-      const userId = profileData.user.id.toString();
-      setCurrentUserId(userId);
-      
-      // Get conversations from Supabase
-      const supabaseConversations = await getConversations(userId);
-      console.log("Fetched conversations:", supabaseConversations);
-      
-      // Transform Supabase conversations to app format
       const formattedConversations: Conversation[] = [];
       
       for (const convo of supabaseConversations) {
-        // Get the other user's ID
+        // convo.participants should be an array like [userId1, userId2]
         const otherUserId = convo.participants.find(
-          (id: string) => id !== userId
+          (id: string) => id !== currentUserId
         );
         
         if (otherUserId) {
           try {
-            // Fetch other user profile from your Django backend
-            const otherUserResponse = await fetch(`${API_BASE_URL}/api/profiles/${otherUserId}/`, {
-              headers: {
-                'Authorization': `Token ${token}`,
-              },
-            });
+            // Fetch other user profile from Supabase 'profiles' table
+            const { data: otherUserProfile, error: profileError } = await supabase
+              .from('profiles')
+              .select('full_name, avatar_url')
+              .eq('id', otherUserId)
+              .single();
             
-            if (otherUserResponse.ok) {
-              const otherUserData = await otherUserResponse.json();
-              
+            if (profileError) {
+              console.error(`Error fetching profile for ${otherUserId}:`, profileError);
+              // Fallback if profile fetch fails
               formattedConversations.push({
-                id: convo.id,
+                id: convo.id, // chat_room_id
                 otherUser: {
-                  id: parseInt(otherUserId),
-                  name: otherUserData.user.first_name && otherUserData.user.last_name ? 
-                    `${otherUserData.user.first_name} ${otherUserData.user.last_name}` : 
-                    otherUserData.user.username || `User ${otherUserId}`,
-                  avatar: otherUserData.avatar
+                  id: otherUserId,
+                  name: `User ${otherUserId.substring(0, 8)}...`,
+                  avatar: undefined // Or a default avatar
                 },
                 lastMessage: convo.lastMessage || "No messages yet",
-                lastMessageTime: new Date(convo.lastMessageTime) || new Date(),
+                lastMessageTime: new Date(convo.lastMessageTime || Date.now()),
+              });
+              continue; // Move to next conversation
+            }
+            
+            if (otherUserProfile) {
+              formattedConversations.push({
+                id: convo.id, // chat_room_id
+                otherUser: {
+                  id: otherUserId,
+                  name: otherUserProfile.full_name || `User ${otherUserId.substring(0,8)}...`,
+                  avatar: otherUserProfile.avatar_url
+                },
+                lastMessage: convo.lastMessage || "No messages yet",
+                lastMessageTime: new Date(convo.lastMessageTime || Date.now()),
               });
             } else {
-              console.error(`Failed to fetch user profile: ${otherUserResponse.status}`);
-              console.log(`Attempting with alternative endpoint for user ${otherUserId}`);
-              
-              // Try alternative endpoints like /api/users/ if your Django API offers that
-              try {
-                const altResponse = await fetch(`${API_BASE_URL}/api/users/${otherUserId}/`, {
-                  headers: { 'Authorization': `Token ${token}` },
-                });
-                
-                if (altResponse.ok) {
-                  const userData = await altResponse.json();
-                  // Use whatever fields your Django user model provides
-                  const fullName = userData.first_name && userData.last_name ? 
-                    `${userData.first_name} ${userData.last_name}` : userData.username;
-                  
-                  formattedConversations.push({
-                    id: convo.id,
-                    otherUser: {
-                      id: parseInt(otherUserId),
-                      name: fullName || `User ${otherUserId}`,
-                    },
-                    lastMessage: convo.lastMessage || "No messages yet",
-                    lastMessageTime: new Date(convo.lastMessageTime) || new Date(),
-                  });
-                } else {
-                  // If all attempts fail, fall back to placeholder
-                  formattedConversations.push({
-                    id: convo.id,
-                    otherUser: {
-                      id: parseInt(otherUserId),
-                      name: `User ${otherUserId}`,
-                    },
-                    lastMessage: convo.lastMessage || "No messages yet",
-                    lastMessageTime: new Date(convo.lastMessageTime) || new Date(),
-                  });
-                }
-              } catch (e) {
-                console.error(`All attempts to fetch user ${otherUserId} failed:`, e);
-                // Fall back to placeholder
+                 // Should not happen if no error, but handle just in case
                 formattedConversations.push({
-                  id: convo.id,
-                  otherUser: {
-                    id: parseInt(otherUserId),
-                    name: `User ${otherUserId}`,
-                  },
-                  lastMessage: convo.lastMessage || "No messages yet",
-                  lastMessageTime: new Date(convo.lastMessageTime) || new Date(),
+                    id: convo.id,
+                    otherUser: {
+                        id: otherUserId,
+                        name: `User ${otherUserId.substring(0,8)}...`,
+                    },
+                    lastMessage: convo.lastMessage || "No messages yet",
+                    lastMessageTime: new Date(convo.lastMessageTime || Date.now()),
                 });
-              }
             }
+
           } catch (error) {
-            console.error(`Error fetching user ${otherUserId}:`, error);
-            // Add with placeholder data
+            console.error(`Error processing conversation for otherUser ${otherUserId}:`, error);
+            // Fallback for unexpected errors during profile processing
             formattedConversations.push({
               id: convo.id,
               otherUser: {
-                id: parseInt(otherUserId),
-                name: `User ${otherUserId}`,
+                id: otherUserId,
+                name: `User ${otherUserId.substring(0, 8)}...`,
               },
               lastMessage: convo.lastMessage || "No messages yet",
-              lastMessageTime: new Date(convo.lastMessageTime) || new Date(),
+              lastMessageTime: new Date(convo.lastMessageTime || Date.now()),
             });
           }
         }
       }
       
-      // Sort conversations by latest message
       formattedConversations.sort((a, b) => 
         b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
       );
       
       setConversations(formattedConversations);
     } catch (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('Error in top-level fetchConversations:', error);
+      setConversations([]); // Clear conversations on top-level error
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // Fetch conversations on initial load
   useEffect(() => {
     fetchConversations();
   }, []);
 
-  // Refresh conversations when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchConversations();
+      return () => {}; // Optional: cleanup function
     }, [])
   );
 
@@ -184,13 +155,15 @@ export const MessagesScreen: React.FC = () => {
     fetchConversations();
   };
 
-  const openConversation = (conversationId: string, otherUser: any) => {
+  const openConversation = (conversationId: string, otherUser: ConversationUser) => {
+    // The conversationId here is the chat_room_id
+    // The otherUser.id is the Supabase UUID of the other user
     navigation.navigate('MessagesTab', {
       screen: 'Conversation',
       params: {
-        conversationId: conversationId,
+        conversationId: conversationId, // This is used as channelId/chatRoomId contextually
         otherUser: {
-          id: otherUser.id,
+          id: otherUser.id,       // Supabase UUID of the other user
           name: otherUser.name,
           imageUrl: otherUser.avatar
         }
@@ -201,7 +174,7 @@ export const MessagesScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Messages</Text>
-      {loading ? (
+      {loading && conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#9C27B0" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
@@ -214,7 +187,7 @@ export const MessagesScreen: React.FC = () => {
       ) : (
         <FlatList
           data={conversations}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id} // item.id is chat_room_id
           renderItem={({ item }) => (
             <TouchableOpacity 
               style={styles.conversationItem}
@@ -254,82 +227,78 @@ export const MessagesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    padding: 16,
+    backgroundColor: '#F8F9FA',
+    paddingTop: 20, // Add some padding at the top
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#9C27B0',
+    color: '#333',
+    paddingHorizontal: 20,
     marginBottom: 20,
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 16,
-  },
-  conversationDetails: {
-    flex: 1,
-  },
-  nameTimeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  time: {
-    fontSize: 14,
-    color: '#999',
-  },
-  message: {
-    fontSize: 14,
-    color: '#666',
-  },
-  unreadMessage: {
-    fontWeight: 'bold',
-    color: '#333',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#999',
+    color: '#6c757d',
     marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: 16,
-    color: '#999',
-  },
-  emptyList: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 14,
+    color: '#adb5bd',
+    textAlign: 'center',
   },
   loadingText: {
     marginTop: 10,
-    color: '#666',
     fontSize: 16,
+    color: '#6c757d',
   },
+  conversationItem: {
+    flexDirection: 'row',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    backgroundColor: '#E9ECEF', // Placeholder background for avatar
+  },
+  conversationDetails: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  name: {
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#212529',
+  },
+  time: {
+    fontSize: 12,
+    color: '#6c757d',
+  },
+  message: {
+    fontSize: 14,
+    color: '#495057',
+  },
+  emptyList: {
+    flexGrow: 1, // Ensure emptyContainer styles apply when list is empty after loading
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 }); 

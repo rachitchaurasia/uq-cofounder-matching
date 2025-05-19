@@ -324,7 +324,8 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   listContainer: {
-    padding: 15,
+    flex: 1,
+    paddingHorizontal: 15,
   },
   articleCard: {
     backgroundColor: 'white',

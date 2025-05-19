@@ -21,12 +21,12 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSignIn = async () => {
-    setError(null);
-    setLoading(true);
-    
+      setError(null);
+      setLoading(true);
+      
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
+          email: email,
         password: password,
       });
 
@@ -43,15 +43,11 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
         setLoading(false);
         return;
       }
-
+      
       console.log("Supabase Sign-In successful:", data);
       // Session is now handled by Supabase client and onAuthStateChange listener.
-      // The global listener should navigate the user appropriately.
-      // For an immediate effect or if no global listener is redirecting from auth screens:
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }], // Or your main authenticated screen
-      });
+      // The global listener in RootNavigator.tsx should navigate the user appropriately.
+      // No explicit navigation.reset() needed here.
 
     } catch (e: any) {
       console.error("Unexpected error in sign-in flow:", e);

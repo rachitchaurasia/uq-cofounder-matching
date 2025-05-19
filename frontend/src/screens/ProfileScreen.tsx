@@ -73,6 +73,37 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [website, setWebsite] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Calculate profile completion percentage - Moved before useMemo and early returns
+  const calculateCompletion = () => {
+    if (!profileData) return 0;
+    
+    const fields = [
+      profileData.full_name,
+      profileData.about,
+      profileData.city,
+      profileData.region,
+      profileData.current_company_name,
+      profileData.url,
+      profileData.skills,
+      profileData.interests,
+      profileData.startup_industries
+    ];
+    
+    const filledFields = fields.filter(field => {
+        if (field === null || typeof field === 'undefined') return false;
+        if (typeof field === 'string') return field.trim() !== '';
+        if (Array.isArray(field)) return field.length > 0;
+        // Check if object is not empty
+        if (typeof field === 'object' && field !== null) return Object.keys(field).length > 0; 
+        return !!field; // boolean check for other non-empty values like numbers
+    }).length;
+
+    return fields.length > 0 ? Math.round((filledFields / fields.length) * 100) : 0;
+  };
+  
+  // useMemo for completion, called unconditionally at the top level of the component body
+  const completion = React.useMemo(() => calculateCompletion(), [profileData]);
+
   // Fetch profile data
   const fetchProfile = async () => {
     setLoading(true);
@@ -179,28 +210,6 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     );
   }
 
-  // Calculate profile completion percentage
-  const calculateCompletion = () => {
-    if (!profileData) return 0;
-    
-    const fields = [
-      profileData.full_name,
-      profileData.about,
-      profileData.city,
-      profileData.region,
-      profileData.current_company_name,
-      profileData.url,
-      profileData.skills,
-      profileData.interests,
-      profileData.startup_industries
-    ];
-    
-    const filledFields = fields.filter(field => field && field.trim() !== '').length;
-    return Math.round((filledFields / fields.length) * 100);
-  };
-
-  const completion = React.useMemo(() => calculateCompletion(), [profileData]);
-
   return (
     <>
       <ScrollView style={styles.container}>
@@ -253,14 +262,14 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
         </View>
 
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Safety Info", "Safety features coming soon!")}>
             <Text style={styles.actionButtonIcon}>🔒</Text>
             <Text style={styles.actionButtonText}>SAFETY</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Saved Contacts", "Saved contacts feature coming soon!")}>
             <Text style={styles.actionButtonIcon}>♡</Text>
-            <Text style={styles.actionButtonText}>Saved Contact</Text>
+            <Text style={styles.actionButtonText}>SAVED</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -268,8 +277,30 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             onPress={() => setEditing(!editing)}
           >
             <Text style={styles.actionButtonIcon}>⚙️</Text>
-            <Text style={styles.actionButtonText}>Edit</Text>
+            <Text style={styles.actionButtonText}>EDIT</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* New row for Matches and QR Code buttons */}
+        <View style={[styles.buttonsContainer, { marginTop: 10 }]}> 
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('MatchesTab')}
+          >
+            <Text style={styles.actionButtonIcon}>🤝</Text> 
+            <Text style={styles.actionButtonText}>MATCHES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => Alert.alert("Share Profile", "QR code sharing coming soon!")} // Placeholder action
+          >
+            <Text style={styles.actionButtonIcon}>📱</Text> 
+            <Text style={styles.actionButtonText}>SHARE</Text>
+          </TouchableOpacity>
+          
+          {/* Keep a spacer if only two buttons, or adjust width if three buttons */}
+           <View style={styles.actionButton} /> 
         </View>
 
         <View style={styles.bioSection}>

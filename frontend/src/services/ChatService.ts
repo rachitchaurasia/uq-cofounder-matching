@@ -12,6 +12,14 @@ export interface IMessage {
   };
 }
 
+// Define the structure for a conversation summary
+interface SupabaseConversation {
+  id: string; // chat_room_id
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: string | Date; // Supabase returns ISO string for timestamps
+}
+
 // Send a message
 export async function sendMessage(text: string, sender: any, receiverId: string) {
   try {
@@ -91,43 +99,53 @@ export async function fetchMessages(userId: string, otherUserId: string): Promis
 }
 
 // Get all conversations for a user
-export async function getConversations(userId: string) {
+export async function getConversations(userId: string): Promise<SupabaseConversation[]> {
   console.log("Getting conversations for user:", userId);
   try {
     // Find all chat rooms where this user is a participant
+    // Fetching relevant fields to determine participants and last message.
     const { data, error } = await supabase
       .from('messages')
       .select('chat_room_id, sender_id, receiver_id, content, created_at')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }); // Important to get the latest message for grouping
     
     if (error) {
       console.error("Error getting conversations:", error);
-      throw error;
+      throw error; // Or return [] depending on desired error handling
+    }
+
+    if (!data) {
+      return [];
     }
     
     // Group messages by chat room and get the last message for each room
-    const conversations: any = {};
+    const conversationsMap: { [roomId: string]: SupabaseConversation } = {};
     
-    data?.forEach(msg => {
-      if (!conversations[msg.chat_room_id] || 
-          new Date(msg.created_at) > new Date(conversations[msg.chat_room_id].lastMessageTime)) {
-        // Get the other user's ID
+    data.forEach(msg => {
+      // Ensure msg.created_at is valid before creating a Date object
+      const currentMessageTime = msg.created_at ? new Date(msg.created_at) : new Date(0);
+      const existingConversation = conversationsMap[msg.chat_room_id];
+
+      if (!existingConversation || (existingConversation.lastMessageTime && currentMessageTime > new Date(existingConversation.lastMessageTime))) {
         const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
         
-        conversations[msg.chat_room_id] = {
+        // Ensure participants are unique and correctly ordered if necessary, though for this purpose, just listing them is fine.
+        // Supabase typically returns ISO strings for timestamps.
+        conversationsMap[msg.chat_room_id] = {
           id: msg.chat_room_id,
-          participants: [userId, otherUserId],
+          participants: [userId, otherUserId].filter(id => id != null) as string[], // Filter out nulls and assert as string[]
           lastMessage: msg.content,
-          lastMessageTime: msg.created_at
+          lastMessageTime: msg.created_at, // Keep as ISO string or convert to Date as needed by consuming component
         };
       }
     });
     
-    console.log("Conversations found:", Object.keys(conversations).length);
-    return Object.values(conversations);
+    console.log("Conversations found:", Object.keys(conversationsMap).length);
+    return Object.values(conversationsMap);
   } catch (error) {
     console.error('Error getting conversations:', error);
-    throw error;
+    // Depending on requirements, you might want to return an empty array or re-throw
+    return []; // Return empty array on error to prevent app crash
   }
 }

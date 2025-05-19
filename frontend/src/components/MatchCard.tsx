@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 
 type MatchCardProps = {
   user: {
-    id: number;
+    id: string;
     name: string;
     position: string;
     interests: string;

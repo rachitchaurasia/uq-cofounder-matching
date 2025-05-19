@@ -101,6 +101,13 @@ export const RootNavigator = () => {
     authenticatedInitialRoute = "MainApp"; // Go to main app
   }
 
+  console.log("RootNavigator Decision:", {
+    hasSession: !!session,
+    onboardingCompleteStatus: onboardingComplete,
+    profileLoading: loadingProfile,
+    initialRoute: session ? authenticatedInitialRoute : "SignIn"
+  });
+
   return (
     <NavigationContainer>
       <Stack.Navigator
