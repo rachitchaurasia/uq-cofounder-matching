@@ -4,7 +4,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import CheckBox from 'expo-checkbox'; // Using expo-checkbox
-import { updateProfile } from "../api/profile"; // Import the helper function
+// import { updateProfile } from "../api/profile"; // Import the helper function - To be removed
+import { supabase } from "../supabaseClient"; // Import Supabase client
 
 const backIcon = require("../assets/back-button.png");
 
@@ -31,19 +32,37 @@ export const Role = () => {
     }
     setLoading(true);
     try {
-        const payload = {
-            role: selectedRole,
-            show_role_on_profile: showRoleOnProfile
-        };
-        const success = await updateProfile(payload);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            Alert.alert("Error", "No authenticated user found. Please sign in.");
+            setLoading(false);
+            // navigation.navigate("SignIn"); // Optionally navigate
+            return;
+        }
 
-        if (success) {
-            // Navigate based on role AFTER saving
-            if (selectedRole === "STARTUP") {
-                navigation.navigate('Working');
-            } else {
-                navigation.navigate('Expertise');
-            }
+        const updates = {
+            role: selectedRole,
+            show_role_on_profile: showRoleOnProfile,
+            updated_at: new Date().toISOString(),
+        };
+        
+        // const success = await updateProfile(payload); // Old call
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+
+        if (updateError) {
+            console.error('Failed to save role to Supabase:', updateError);
+            throw updateError;
+        }
+        
+        console.log('Successfully saved role to Supabase profile');
+        // Navigate based on role AFTER saving
+        if (selectedRole === "STARTUP") {
+            navigation.navigate('Working');
+        } else {
+            navigation.navigate('Expertise');
         }
     } catch (error: any) {
          console.error("Failed to save role:", error);

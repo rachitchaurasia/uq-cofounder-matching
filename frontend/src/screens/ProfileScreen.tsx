@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -12,14 +12,14 @@ import {
   Modal,
   FlatList
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
-import { updateProfile } from '../api/profile';
+import { supabase } from '../supabaseClient';
 import { ProfileTabScreenProps } from '../navigation/types';
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-const defaultLogo = require('../assets/company-logo.png');
+import { ProfileQRCode } from '../components/ProfileQRCode';
+import * as ImagePicker from 'expo-image-picker';
+const defaultLogo = require('../assets/default-avatar.png');
 
 
 // Define the type for match results
@@ -29,127 +29,268 @@ interface MatchResult {
   score: number;
 }
 
-// Define the type for our profile data
+// Define the type for our profile data - Align with Supabase 'profiles' table
 interface ProfileData {
-  user?: {
-    email: string;
-    first_name: string;
-    last_name: string;
-    id?: number;
-  };
-  about?: string;
+  id: string; // UUID from auth.users
+  updated_at?: string;
+  email?: string;
+  full_name?: string;
+  avatar_url?: string;
   city?: string;
+  country_code?: string;
   region?: string;
-  created_at?: string;
-  current_company_name?: string;
+  about?: string;
+  url?: string; // LinkedIn URL?
   position?: string;
-  url?: string;
+  current_company_name?: string;
+  current_company_id?: string;
+  experience_details?: string;
+  experience_level?: string;
+  education_summary?: string;
+  education_details?: string;
+  skills?: any; // JSONB, could be string[] or object, handle accordingly
+  skill_categories?: any; // JSONB
+  languages?: string;
+  interests?: any; // JSONB
+  startup_industries?: any; // JSONB
+  startup_goals?: string;
+  certifications?: string;
+  courses?: string;
+  recommendations_count?: number;
+  volunteer_experience?: string;
+  role?: string;
+  show_role_on_profile?: boolean;
+  looking_for?: string;
+  offers?: string;
   phone?: string;
-  skills?: string;
-  interests?: string;
-  startup_industries?: string;
+  created_at?: string;
 }
 
 export const ProfileScreen: React.FC<ProfileTabScreenProps> = ({ navigation }) => {
 const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [position, setPosition] = useState('');
   const [website, setWebsite] = useState('');
   const [phone, setPhone] = useState('');
-  const [runningMatch, setRunningMatch] = useState(false);
-  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
-  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
+  // Calculate profile completion percentage - Moved before useMemo and early returns
+  const calculateCompletion = () => {
+    if (!profileData) return 0;
+    
+    const fields = [
+      profileData.full_name,
+      profileData.about,
+      profileData.city,
+      profileData.region,
+      profileData.current_company_name,
+      profileData.url,
+      profileData.skills,
+      profileData.interests,
+      profileData.startup_industries
+    ];
+    
+    const filledFields = fields.filter(field => {
+        if (field === null || typeof field === 'undefined') return false;
+        if (typeof field === 'string') return field.trim() !== '';
+        if (Array.isArray(field)) return field.length > 0;
+        // Check if object is not empty
+        if (typeof field === 'object' && field !== null) return Object.keys(field).length > 0; 
+        return !!field; // boolean check for other non-empty values like numbers
+    }).length;
+
+    return fields.length > 0 ? Math.round((filledFields / fields.length) * 100) : 0;
+  };
+  
+  // useMemo for completion, called unconditionally at the top level of the component body
+  const completion = useMemo(() => calculateCompletion(), [profileData]);
 
   // Fetch profile data
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You need to be logged in to view your profile.');
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
+      if (error) {
+        console.error('Error fetching Supabase profile:', error);
+        if (error.code === 'PGRST116' || error.message.includes('JSON object requested, multiple (or no) rows returned')) {
+          Alert.alert('Profile Not Found', 'Could not find your profile. It might still be setting up if you just registered.');
+        } else {
+          throw error;
+        }
       }
 
-      const data = await response.json();
-      setProfileData(data);
-      setBio(data.about || '');
-      setWebsite(data.url || '');
-      setPhone(data.phone || '');
-    } catch (error) {
+      if (data) {
+        setProfileData(data as ProfileData);
+        setBio(data.about || '');
+        setFullName(data.full_name || '');
+        setCity(data.city || '');
+        setRegion(data.region || '');
+        setCompanyName(data.current_company_name || '');
+        setPosition(data.position || '');
+        setWebsite(data.url || '');
+        setPhone(data.phone || '');
+      } else if (!error) {
+         Alert.alert('Profile Not Found', 'Your profile data could not be loaded.');
+      }
+
+    } catch (error: any) {
       console.error('Error fetching profile:', error);
-      Alert.alert('Error', 'Failed to load profile data');
+      Alert.alert('Error', error.message || 'Failed to load profile data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Save edited fields
-  const saveChanges = async () => {
-    try {
-      const payload = {
-        about: bio,
-        url: website,
-        // The phone field might not be directly in the model, may need adjustment
-        phone: phone
-      };
-
-      await updateProfile(payload);
-      setEditing(false);
-      fetchProfile(); // Refresh data
-    } catch (error) {
-      console.error('Error saving changes:', error);
-      Alert.alert('Error', 'Failed to save changes');
+  const handleLogout = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
+    setLoading(false);
+    if (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    } else {
+      // navigation.reset or navigate to SignIn is typically handled by onAuthStateChange listener
+      // If not, you can explicitly navigate here:
+      // nav.reset({ index: 0, routes: [{ name: 'SignIn' }] }); 
+      // For now, we assume onAuthStateChange will handle it.
+      console.log('User logged out');
     }
   };
 
-  // Run matching algorithm
-  const runMatching = async () => {
-    if (!profileData?.user?.id) {
-      Alert.alert('Error', 'Profile data not loaded');
+  // Save edited fields
+  const saveChanges = async () => {
+    if (!profileData?.id) {
+        Alert.alert('Error', 'Profile not loaded, cannot save changes.');
+        return;
+    }
+    setLoading(true);
+    try {
+      const updates: Partial<ProfileData> = {
+        about: bio,
+        full_name: fullName,
+        city: city,
+        region: region,
+        current_company_name: companyName,
+        position: position,
+        url: website,
+        phone: phone,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', profileData.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+      await fetchProfile();
+    } catch (error: any) {
+      console.error('Error saving changes:', error);
+      Alert.alert('Error', error.message || 'Failed to save changes');
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleImagePick = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
       return;
     }
 
-    setRunningMatch(true);
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // Square aspect ratio for avatars
+      quality: 0.8, // Compress image slightly
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      uploadAvatar(asset.uri);
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!profileData?.id) {
+      Alert.alert('Error', 'Profile not loaded, cannot upload image.');
+      return;
+    }
+    setUploading(true);
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
-        return;
+      const fileExt = uri.split('.').pop();
+      const fileName = `${profileData.id}.${Date.now()}.${fileExt}`;
+      const filePath = `${profileData.id}/${fileName}`;
+
+      // React Native needs a different way to get the blob for FormData
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatars') // Make sure 'avatars' bucket exists and has correct policies
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: true, // Overwrite if file with same name exists
+          contentType: blob.type // Pass content type
+        });
+
+      if (uploadError) {
+        console.error('Error uploading avatar to Supabase Storage:', uploadError);
+        throw uploadError;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/matching/run/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      if (data) {
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        const newAvatarUrl = urlData.publicUrl;
 
-      if (!response.ok) {
-        throw new Error('Failed to run matching');
+        // Update profile with the new avatar URL
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: newAvatarUrl, updated_at: new Date().toISOString() })
+          .eq('id', profileData.id);
+
+        if (updateError) {
+          console.error('Error updating profile with new avatar URL:', updateError);
+          throw updateError;
+        }
+
+        // Refresh profile data to show new image
+        await fetchProfile(); 
+        Alert.alert('Success', 'Profile picture updated!');
       }
-
-      // Navigate to the matches screen instead of showing modal
-      navigation.getParent()?.navigate('MatchesTab');
-    } catch (error) {
-      console.error('Error running matching:', error);
-      Alert.alert('Error', 'Failed to run matching algorithm');
+    } catch (error: any) {
+      console.error('Error uploading image or updating profile:', error);
+      Alert.alert('Upload Failed', error.message || 'Could not upload image.');
     } finally {
-      setRunningMatch(false);
+      setUploading(false);
     }
   };
 
@@ -164,66 +305,6 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
       </View>
     );
   }
-
-  // Calculate profile completion percentage
-  const calculateCompletion = () => {
-    if (!profileData) return 0;
-    
-    const fields = [
-      profileData.user?.first_name,
-      profileData.user?.last_name,
-      profileData.about,
-      profileData.city,
-      profileData.region,
-      profileData.current_company_name,
-      profileData.url,
-      profileData.skills,
-      profileData.interests,
-      profileData.startup_industries
-    ];
-    
-    const filledFields = fields.filter(field => field && field.trim() !== '').length;
-    return Math.round((filledFields / fields.length) * 100);
-  };
-
-  const completion = calculateCompletion();
-
-  // Add this function to handle connecting with a match
-  const handleConnect = async (userId: number) => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
-        return;
-      }
-      
-      // First navigate to the MessageTab
-      navigation.getParent()?.navigate('MessagesTab');
-      
-      // Create or open chat with this user
-      // In a real implementation, you would call your backend to start a conversation
-      Alert.alert('Success', 'Connection request sent!');
-    } catch (error) {
-      console.error('Error connecting with user:', error);
-      Alert.alert('Error', 'Failed to connect with user');
-    }
-  };
-
-  // Update the renderMatchItem function to include a Connect button
-  const renderMatchItem = ({ item }: { item: MatchResult }) => (
-    <View style={styles.matchItem}>
-      <View style={styles.matchInfo}>
-        <Text style={styles.matchName}>{item.name}</Text>
-        <Text style={styles.matchScore}>{Math.round(item.score * 100)}% Match</Text>
-      </View>
-      <TouchableOpacity 
-        style={styles.connectButton}
-        onPress={() => handleConnect(item.user_id)}
-      >
-        <Text style={styles.connectButtonText}>Connect</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <>
@@ -240,23 +321,66 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
         <View style={styles.profileCard}>
           <View style={styles.profileImageContainer}>
-            <Image 
-              source={defaultLogo} 
-              style={styles.profileImage} 
-              resizeMode="contain"
-            />
+            <TouchableOpacity onPress={handleImagePick} disabled={uploading || editing}> 
+              <Image 
+                source={profileData?.avatar_url ? { uri: profileData.avatar_url } : defaultLogo} 
+                style={styles.profileImage} 
+                resizeMode="cover"
+              />
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                </View>
+              )}
+              {!uploading && !editing && (
+                <View style={styles.editImageButton}>
+                  <Text style={styles.editImageText}>EDIT</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.completionBadge}>
               <Text style={styles.completionText}>{completion}% COMPLETE</Text>
             </View>
           </View>
-          <Text style={styles.name}>{profileData?.user?.first_name + ' ' + profileData?.user?.last_name || 'Your Name'}</Text>
+          {editing ? (
+            <TextInput
+              style={styles.detailInput} 
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Your full name"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.name}>{profileData?.full_name || 'Your Name'}</Text>
+          )}
 
-          <Text style={styles.name}>{profileData?.current_company_name || 'Your Company'}</Text>
-          <Text style={styles.tagline}>{profileData?.position || 'Your Position'}</Text>
+          {editing ? (
+            <TextInput
+              style={styles.detailInput}
+              value={companyName}
+              onChangeText={setCompanyName}
+              placeholder="Your company name"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.name}>{profileData?.current_company_name || 'Your Company'}</Text>
+          )}
+          
+          {editing ? (
+            <TextInput
+              style={styles.detailInput}
+              value={position}
+              onChangeText={setPosition}
+              placeholder="Your position/role"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.tagline}>{profileData?.position || 'Your Position'}</Text>
+          )}
           
           <View style={styles.infoContainer}>
             <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{profileData?.user?.email || 'No email provided'}</Text>
+            <Text style={styles.infoValue}>{profileData?.email || 'No email provided'}</Text>
             
             <Text style={styles.infoLabel}>When did you start building this project?</Text>
             <Text style={styles.infoValue}>
@@ -270,21 +394,40 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             </Text>
             
             <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoValue}>
-              {[profileData?.city, profileData?.region].filter(Boolean).join(', ') || 'Not specified'}
-            </Text>
+            {editing ? (
+              <>
+                <TextInput
+                  style={styles.detailInput}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="City"
+                  placeholderTextColor="#999"
+                />
+                <TextInput
+                  style={[styles.detailInput, { marginTop: 10 }]}
+                  value={region}
+                  onChangeText={setRegion}
+                  placeholder="State/Region"
+                  placeholderTextColor="#999"
+                />
+              </>
+            ) : (
+              <Text style={styles.infoValue}>
+                {[profileData?.city, profileData?.region].filter(Boolean).join(', ') || 'Not specified'}
+              </Text>
+            )}
           </View>
         </View>
 
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Safety Info", "Safety features coming soon!")}>
             <Text style={styles.actionButtonIcon}>🔒</Text>
             <Text style={styles.actionButtonText}>SAFETY</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Saved Contacts", "Saved contacts feature coming soon!")}>
             <Text style={styles.actionButtonIcon}>♡</Text>
-            <Text style={styles.actionButtonText}>Saved Contact</Text>
+            <Text style={styles.actionButtonText}>SAVED</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -292,7 +435,34 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             onPress={() => setEditing(!editing)}
           >
             <Text style={styles.actionButtonIcon}>⚙️</Text>
-            <Text style={styles.actionButtonText}>Edit</Text>
+            <Text style={styles.actionButtonText}>EDIT</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* New row for Matches and QR Code buttons */}
+        <View style={[styles.buttonsContainer, { marginTop: 10 }]}> 
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('MatchesTab')}
+          >
+            <Text style={styles.actionButtonIcon}>🤝</Text> 
+            <Text style={styles.actionButtonText}>MATCHES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => setShowQRModal(true)}
+          >
+            <Text style={styles.actionButtonIcon}>📱</Text> 
+            <Text style={styles.actionButtonText}>SHARE</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => nav.navigate('ChangePassword')}
+          >
+            <Text style={styles.actionButtonIcon}>🔑</Text> 
+            <Text style={styles.actionButtonText}>PASSWORD</Text>
           </TouchableOpacity>
         </View>
 
@@ -376,21 +546,11 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity 
-          style={styles.matchButton}
-          onPress={runMatching}
-          disabled={runningMatch}
-        >
-          {runningMatch ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.matchButtonText}>MATCH</Text>
-          )}
-        </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.newsletterBanner}
-          onPress={() => nav.navigate("SignIn")}
+          onPress={handleLogout}
+          disabled={loading}
         >
           <Text style={styles.newsletterText}>LOGOUT</Text>
         </TouchableOpacity>
@@ -398,34 +558,25 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-      
-      {/* Match Results Modal */}
+
+      {/* QR Code Modal */}
       <Modal
         animationType="slide"
         transparent={true}
-        visible={showMatchModal}
-        onRequestClose={() => setShowMatchModal(false)}
+        visible={showQRModal}
+        onRequestClose={() => {
+          setShowQRModal(!showQRModal);
+        }}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Your Matches</Text>
-            
-            {matchResults.length > 0 ? (
-              <FlatList
-                data={matchResults}
-                renderItem={renderMatchItem}
-                keyExtractor={(item) => item.user_id.toString()}
-                style={styles.matchList}
-              />
-            ) : (
-              <Text style={styles.noMatchesText}>No matches found</Text>
-            )}
-            
+        <View style={styles.modalCenteredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Scan to connect!</Text>
+            {profileData?.id && <ProfileQRCode userId={profileData.id} size={250} />}
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowMatchModal(false)}
+              style={[styles.button, styles.buttonClose]}
+              onPress={() => setShowQRModal(!showQRModal)}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={styles.textStyle}>Hide QR Code</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -771,4 +922,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  modalCenteredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+    marginTop: 15,
+  },
+  buttonClose: {
+    backgroundColor: "#9C27B0",
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center"
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: '500'
+  },
+  nameDisplay: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginVertical: 5,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 60,
+  },
+  editImageButton: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  editImageText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  }
 });

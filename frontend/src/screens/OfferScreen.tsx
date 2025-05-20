@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollVi
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"; // Adjust path if needed
-import { updateProfile } from "../api/profile"; // Import the helper
+import { supabase } from "../supabaseClient"; // Import Supabase client
 
 const backIcon = require("../assets/back-button.png"); // Assuming same back icon
 
@@ -52,17 +52,38 @@ export const OfferScreen = () => {
   const handleContinue = async () => { // <<< Make async
     setLoading(true); // <<< Start loading
     try {
-        const payload = {
-            offers: selectedOffers.join(',') // <<< Create payload
-        };
-        console.log("Saving Offers:", payload);
-        const success = await updateProfile(payload); // <<< Call API
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        // navigation.navigate("SignIn"); // Optionally navigate
+        return;
+      }
 
-        if (success) {
-          // This is the last step, navigate to Welcome screen
-          // Use replace to remove the onboarding stack
-          navigation.replace('Welcome'); // <<< Navigate on success
-        }
+      const updates = {
+        offers: selectedOffers, // Save as an array for JSONB
+        onboarding_completed: true, // <<< SET ONBOARDING COMPLETED
+        updated_at: new Date().toISOString(),
+      };
+
+      // console.log("Saving Offers:", payload); // Old log
+      // const success = await updateProfile(payload); // Old call
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save offers to Supabase:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Successfully saved offers to Supabase profile:', selectedOffers);
+      // This is the last step, navigate to Welcome screen
+      // Use replace to remove the onboarding stack
+      navigation.replace('Welcome'); // <<< Navigate on success
+      
     } catch (error: any) {
          console.error("Failed to save offers:", error);
          Alert.alert("Save Failed", error.message || "Could not save what you can offer. Please try again.");

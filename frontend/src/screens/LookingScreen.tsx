@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollVi
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"; // Adjust path if needed
-import { updateProfile } from "../api/profile"; // Import the helper
+import { supabase } from "../supabaseClient"; // Import Supabase client
 
 const backIcon = require("../assets/back-button.png"); // Assuming same back icon
 
@@ -54,15 +54,34 @@ export const LookingScreen = () => { // Renamed component
   const handleContinue = async () => {
     setLoading(true);
     try {
-      const payload = {
-        looking_for: selectedItems.join(',')
-      };
-      console.log("Saving Looking For:", payload);
-      const success = await updateProfile(payload);
-
-      if (success) {
-        navigation.navigate('Offer');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        // navigation.navigate("SignIn"); // Optionally navigate
+        return;
       }
+
+      const updates = {
+        looking_for: selectedItems, // Save as an array for JSONB
+        updated_at: new Date().toISOString(),
+      };
+      // console.log("Saving Looking For:", payload); // Old log
+      // const success = await updateProfile(payload); // Old call
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save looking for to Supabase:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully saved looking for to Supabase profile:', selectedItems);
+      navigation.navigate('Offer');
+      
     } catch (error: any) {
       console.error("Failed to save looking for:", error);
       Alert.alert("Save Failed", error.message || "Could not save what you're looking for. Please try again.");

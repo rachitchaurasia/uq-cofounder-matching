@@ -8,8 +8,10 @@ interface ProfileQRCodeProps {
 }
 
 export const ProfileQRCode: React.FC<ProfileQRCodeProps> = ({ userId, size = 200 }) => {
-  // Create a URL to your profile
-  const profileUrl = `https://your-app-domain.com/profile/${userId}`;
+  // IMPORTANT: Replace this with your actual deployed GitHub Pages URL or custom domain
+  // Example for GitHub Pages: const profileUrl = `https://your-username.github.io/your-repository-name/profile.html?userId=${userId}`;
+  // Example for custom domain: const profileUrl = `https://yourcustomdomain.com/profile.html?userId=${userId}`;
+  const profileUrl = `https://your-username.github.io/your-repo/profile.html?userId=${userId}`;
   
   return (
     <View style={styles.container}>

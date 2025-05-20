@@ -15,6 +15,8 @@ export type RootStackParamList = {
   MainApp: undefined; // This will host the Bottom Tab Navigator
   NewsDetail: { article: NewsArticle };
   CompanyInfo: undefined;
+  ChangePassword: undefined; // Added ChangePassword screen
+  UserProfileViewScreen: { userId: string; isReadOnly: true }; // Screen to view other users' profiles
 };
 
 // Define params for your new screens
@@ -37,10 +39,8 @@ export type BottomTabParamList = {
   ChatbotTab: undefined; // New Chatbot Tab
   DiscoverTab: undefined; // Placeholder, linked to search icon
   MessagesTab: {
-    screen?: keyof MessagesStackParamList;
-    params?: {
-      conversationId?: number;
-    }
+    screen?: keyof MessagesStackParamList; // e.g., 'Conversation' or 'MessagesList'
+    params?: MessagesStackParamList[keyof MessagesStackParamList]; // Allows params for any screen in MessagesStack
   };
   ProfileTab: undefined; // Placeholder
   MatchesTab: undefined;
@@ -77,13 +77,20 @@ export type ProfileTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'Pr
 export type MessagesStackParamList = {
   MessagesList: undefined;
   Conversation: {
-    conversationId: string;
-    channelId?: string;
+    // For Direct Chats
+    conversationId?: string; // This is the chat_room_id for direct messages
     otherUser?: {
-      id: number;
+      id: string;
       name: string;
       position?: string;
       imageUrl?: string;
     };
+    // For Group Chats
+    groupId?: string;
+    groupName?: string;
+    isGroupChat?: boolean;
+    eventId?: string; // Optional: if the group chat is linked to an event
+    // Common - channelId might be deprecated or refactored based on usage
+    channelId?: string; 
   };
 };

@@ -14,11 +14,23 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessagesStackParamList } from '../navigation/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
-import { sendMessage, subscribeToMessages, IMessage } from '../services/ChatService';
+import { 
+  sendMessage, 
+  subscribeToMessages, 
+  IMessage, 
+  sendGroupMessage, 
+  subscribeToGroupMessages, 
+  fetchGroupMessages 
+} from '../services/ChatService';
+import { supabase } from '../supabaseClient';
 
 type ConversationScreenRouteProp = RouteProp<MessagesStackParamList, 'Conversation'>;
+
+interface ChatCurrentUser {
+  _id: string; // Supabase user ID (UUID)
+  name: string;
+  avatar?: string;
+}
 
 // Simple message component
 const MessageBubble = ({ message, isOwnMessage }: { message: IMessage, isOwnMessage: boolean }) => {
@@ -61,45 +73,67 @@ export const ConversationScreen: React.FC = () => {
   const route = useRoute<ConversationScreenRouteProp>();
   const navigation = useNavigation<NativeStackNavigationProp<MessagesStackParamList>>();
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<ChatCurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
-  const { conversationId, otherUser } = route.params || {};
+  const { conversationId, otherUser, groupId, groupName, isGroupChat, eventId } = route.params || {};
 
   // Set title
   useEffect(() => {
-    if (otherUser?.name) {
+    if (isGroupChat && groupName) {
+      navigation.setOptions({ title: groupName });
+    } else if (otherUser?.name) {
       navigation.setOptions({ title: otherUser.name });
     }
-  }, [otherUser, navigation]);
+  }, [isGroupChat, groupName, otherUser, navigation]);
 
-  // Load current user data
+  // Load current user data from Supabase
   useEffect(() => {
     const loadUserData = async () => {
+      setLoading(true);
       try {
-        const token = await AsyncStorage.getItem('authToken');
-        if (!token) {
-          throw new Error('No auth token found');
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          console.error('Error fetching Supabase user or no user logged in:', authError);
+          throw new Error(authError?.message || 'No authenticated Supabase user found.');
+        }
+
+        // Fetch profile details from Supabase 'profiles' table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching Supabase profile:', profileError);
+          // Fallback if profile fetch fails but auth user exists
+          setCurrentUser({
+            _id: authUser.id,
+            name: 'User ' + authUser.id.substring(0, 6), // Fallback name
+            avatar: undefined // Or a default avatar
+          });
+        } else if (profileData) {
+          setCurrentUser({
+            _id: authUser.id,
+            name: profileData.full_name || 'User ' + authUser.id.substring(0, 6),
+            avatar: profileData.avatar_url
+          });
+        } else {
+            // Should not happen if no error, but handle just in case
+        setCurrentUser({
+                _id: authUser.id,
+                name: 'User ' + authUser.id.substring(0, 6),
+                avatar: undefined
+            });
         }
         
-        const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-        });
-        
-        if (!profileResponse.ok) throw new Error('Failed to fetch profile');
-        const profileData = await profileResponse.json();
-        
-        setCurrentUser({
-          _id: profileData.user.id.toString(),
-          name: `${profileData.user.first_name} ${profileData.user.last_name}`,
-          avatar: profileData.avatar || `https://ui-avatars.com/api/?name=${profileData.user.first_name}+${profileData.user.last_name}`
-        });
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading user data:', error);
+      } catch (error: any) {
+        console.error('Error loading user data for chat:', error.message);
+        // Potentially navigate away or show a persistent error
+        // For now, we just log and loading stops, which might show an error message
+      } finally {
         setLoading(false);
       }
     };
@@ -107,59 +141,54 @@ export const ConversationScreen: React.FC = () => {
     loadUserData();
   }, []);
 
-  // For testing: add a sample message if none exist
+  // For testing: add a sample message if none exist - REMOVE OR ADJUST THIS
   useEffect(() => {
-    if (!loading && messages.length === 0) {
-      const sampleMessages: IMessage[] = [
-        {
-          _id: '1',
-          text: 'Hello! Welcome to the chat. This is a sample message to show how the chat will look.',
-          createdAt: new Date(),
-          user: {
-            _id: currentUser ? 'other' : 'self',
-            name: 'Sample User',
-          }
-        },
-        {
-          _id: '2',
-          text: 'Hi there! This is what your messages will look like.',
-          createdAt: new Date(Date.now() - 1000 * 60), // 1 minute ago
-          user: {
-            _id: currentUser ? currentUser._id : 'self',
-            name: currentUser ? currentUser.name : 'You',
-          }
-        }
-      ];
-      setMessages(sampleMessages);
+    if (!loading && currentUser && messages.length === 0 && Platform.OS !== 'web') { 
+      // console.log("Current user for sample messages:", currentUser);
+      // Sample message logic (currently commented out) - adjust if needed for groups
     }
-  }, [loading, currentUser, messages.length]);
+  }, [loading, currentUser, messages.length, otherUser, isGroupChat, groupId]);
 
-  // Subscribe to messages
+  // Subscribe to messages (Direct or Group)
   useEffect(() => {
-    if (!currentUser || !otherUser) return;
-    
-    console.log("Subscribing to messages between", currentUser._id, "and", otherUser.id.toString());
-    const unsubscribe = subscribeToMessages(
-      currentUser._id,
-      otherUser.id.toString(),
-      (fetchedMessages) => {
-        console.log("Received messages:", fetchedMessages.length);
+    if (!currentUser) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (isGroupChat && groupId) {
+      console.log("Subscribing to group messages for group:", groupId);
+      unsubscribe = subscribeToGroupMessages(groupId, (fetchedMessages) => {
+        console.log("Received group messages:", fetchedMessages.length);
         setMessages(fetchedMessages);
-      }
-    );
+      });
+      // Optionally, fetch initial messages if subscribeToGroupMessages doesn't do it
+      // fetchGroupMessages(groupId).then(setMessages);
+    } else if (!isGroupChat && conversationId && otherUser) {
+      console.log("Subscribing to direct messages between", currentUser._id, "and", otherUser.id.toString());
+      unsubscribe = subscribeToMessages(
+        currentUser._id,
+        otherUser.id.toString(),
+        (fetchedMessages) => {
+          console.log("Received direct messages:", fetchedMessages.length);
+          setMessages(fetchedMessages);
+        }
+      );
+    }
     
     return () => {
       if (unsubscribe) {
+        console.log(isGroupChat ? "Unsubscribing from group" : "Unsubscribing from direct chat");
         unsubscribe();
       }
     };
-  }, [currentUser, otherUser]);
+  }, [currentUser, conversationId, otherUser, groupId, isGroupChat]);
 
   // Send message handler
   const handleSend = async () => {
-    if (!inputText.trim() || !currentUser || !otherUser) return;
+    if (!inputText.trim() || !currentUser) return;
+    if (!isGroupChat && !otherUser) return; // Need otherUser for direct
+    if (isGroupChat && !groupId) return; // Need groupId for group
     
-    // Create a temporary message to show immediately
     const tempMessage: IMessage = {
       _id: Date.now().toString(),
       text: inputText.trim(),
@@ -178,11 +207,19 @@ export const ConversationScreen: React.FC = () => {
     setInputText('');
     
     try {
-      await sendMessage(
-        messageToSend,
-        currentUser,
-        otherUser.id.toString()
-      );
+      if (isGroupChat && groupId) {
+        await sendGroupMessage(
+          messageToSend,
+          groupId,
+          currentUser._id // senderId for group messages
+        );
+      } else if (!isGroupChat && otherUser) {
+        await sendMessage(
+          messageToSend,
+          currentUser, // Old sendMessage expects the full currentUser object
+          otherUser.id.toString()
+        );
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // You could add error handling UI here
@@ -190,19 +227,28 @@ export const ConversationScreen: React.FC = () => {
   };
 
   const createTestMessage = async () => {
-    if (!currentUser || !otherUser) return;
-    
-    const testMessage = `Test message ${new Date().toLocaleTimeString()}`;
-    
-    try {
-      await sendMessage(
-        testMessage,
-        currentUser,
-        otherUser.id.toString()
-      );
-      console.log("Test message sent!");
-    } catch (error) {
-      console.error("Error sending test message:", error);
+    if (!currentUser) return;
+
+    if (isGroupChat && groupId) {
+      const testMessage = `Test group message ${new Date().toLocaleTimeString()}`;
+      try {
+        await sendGroupMessage(testMessage, groupId, currentUser._id);
+        console.log("Test group message sent!");
+      } catch (error) {
+        console.error("Error sending test group message:", error);
+      }
+    } else if (!isGroupChat && otherUser) {
+      const testMessage = `Test direct message ${new Date().toLocaleTimeString()}`;
+      try {
+        await sendMessage(
+          testMessage,
+          currentUser,
+          otherUser.id.toString()
+        );
+        console.log("Test direct message sent!");
+      } catch (error) {
+        console.error("Error sending test direct message:", error);
+      }
     }
   };
 
@@ -215,7 +261,7 @@ export const ConversationScreen: React.FC = () => {
     );
   }
 
-  if (!currentUser || !otherUser) {
+  if (!currentUser || (!isGroupChat && !otherUser) || (isGroupChat && !groupId) ) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>

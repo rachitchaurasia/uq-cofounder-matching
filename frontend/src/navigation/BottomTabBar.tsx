@@ -25,7 +25,7 @@ const TAB_ITEMS: TabItem[] = [
   { routeName: 'EventsTab', icon: eventsIcon, label: 'Events' },
   { routeName: 'ChatbotTab', icon: chatbotIcon, label: 'Chatbot' }, // New Chatbot Tab
   { routeName: 'DiscoverTab', icon: searchIcon, label: 'Discover' },
-  { routeName: 'MessagesTab', icon: messageIcon, label: 'Messages', badgeCount: 3 }, // Example badge
+  { routeName: 'MessagesTab', icon: messageIcon, label: 'Messages' }, // Example badge
   { routeName: 'ProfileTab', icon: profileIcon, label: 'Profile' },
 ];
 

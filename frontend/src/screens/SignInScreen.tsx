@@ -19,20 +19,6 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
         <View style={styles.content}>
           <Text style={styles.title}>CO-FOUNDER MATCHER</Text>
-          
-          <TouchableOpacity 
-            style={styles.signInButton}
-            onPress={() => console.log('Apple Sign In')}
-          >
-            <Text style={styles.buttonText}>SIGN IN WITH APPLE</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.signInButton}
-            onPress={() => console.log('Google Sign In')}
-          >
-            <Text style={styles.buttonText}>SIGN IN WITH GOOGLE</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.signInButton}

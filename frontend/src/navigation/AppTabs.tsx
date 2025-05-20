@@ -32,5 +32,5 @@ const AppTabs = () => {
     </Tab.Navigator>
   );
 };
-
 export default AppTabs;
+

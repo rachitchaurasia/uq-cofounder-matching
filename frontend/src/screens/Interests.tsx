@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollVi
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { updateProfile } from "../api/profile";
+import { supabase } from "../supabaseClient";
 
 const backIcon = require("../assets/back-button.png");
 
@@ -66,18 +66,36 @@ export const Interests = () => {
   const handleContinue = async () => {
     setLoading(true);
     try {
-      // Ensure a more comprehensive payload that includes all selected interests
-      const payload = {
-        interests: selectedInterests.join(','),
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        // navigation.navigate("SignIn"); // Optionally navigate
+        return;
+      }
+
+      // Save interests directly as an array for JSONB column
+      const updates = {
+        interests: selectedInterests, // Save as an array
+        updated_at: new Date().toISOString(),
       };
       
-      // Make sure to await the updateProfile call
-      await updateProfile(payload);
-      console.log('Successfully saved interests:', selectedInterests);
+      // await updateProfile(payload); // Old call
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save interests to Supabase:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully saved interests to Supabase profile:', selectedInterests);
       navigation.navigate('Looking'); // Continue to next screen
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save interests:', error);
-      Alert.alert('Error', 'Failed to save your interests. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save your interests. Please try again.');
     } finally {
       setLoading(false);
     }

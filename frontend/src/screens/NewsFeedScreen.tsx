@@ -49,12 +49,57 @@ export const NewsFeedScreen: React.FC<NewsFeedScreenNavigationProps> = ({ naviga
     console.log('Searching for:', searchText);
   };
 
+  const renderListHeader = () => {
+    return (
+      <>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.featuredCardsContainer}
+        >
+          {featuredArticles.map((article, index) => (
+            <TouchableOpacity
+              key={`featured-${article.id}`}
+              style={styles.featuredCard}
+              onPress={() => {
+                const parentNavigator = navigation.getParent<NativeStackScreenProps<RootStackParamList>['navigation']>();
+                if (parentNavigator) {
+                  parentNavigator.navigate('NewsDetail', { article });
+                }
+              }}
+            >
+              <Image 
+                source={{ uri: article.thumbnailUrl }} 
+                style={styles.featuredImage} 
+              />
+              <View style={styles.featuredCardContent}>
+                <Text style={styles.featuredTitle} numberOfLines={2}>
+                  {article.title}
+                </Text>
+                <View style={styles.authorRow}>
+                  <Image 
+                    source={require('../assets/profile-button.png')} 
+                    style={styles.authorIcon} 
+                  />
+                  <Text style={styles.authorText}>
+                    {article.author} • {article.date}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        
+        <View style={styles.latestNewsHeader}>
+          <Text style={styles.latestNewsTitle}>Latest News & Events</Text>
+        </View>
+      </>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>{"‹"}</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>News & Events</Text>
       </View>
       
@@ -99,81 +144,38 @@ export const NewsFeedScreen: React.FC<NewsFeedScreenNavigationProps> = ({ naviga
         </ScrollView>
       </View>
       
-      <View style={styles.latestNewsHeader}>
-        <Text style={styles.latestNewsTitle}>Latest News & Events</Text>
-      </View>
-      
-      <ScrollView>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.featuredCardsContainer}
-        >
-          {featuredArticles.map((article, index) => (
+      <View style={styles.listContainer}>
+        <FlatList
+          data={filteredArticles}
+          renderItem={({ item }) => (
             <TouchableOpacity
-              key={`featured-${article.id}`}
-              style={styles.featuredCard}
+              style={styles.articleCard}
               onPress={() => {
                 const parentNavigator = navigation.getParent<NativeStackScreenProps<RootStackParamList>['navigation']>();
                 if (parentNavigator) {
-                  parentNavigator.navigate('NewsDetail', { article });
+                  parentNavigator.navigate('NewsDetail', { article: item });
                 }
               }}
             >
-              <Image 
-                source={{ uri: article.thumbnailUrl }} 
-                style={styles.featuredImage} 
-              />
-              <View style={styles.featuredCardContent}>
-                <Text style={styles.featuredTitle} numberOfLines={2}>
-                  {article.title}
-                </Text>
-                <View style={styles.authorRow}>
-                  <Image 
-                    source={require('../assets/profile-button.png')} 
-                    style={styles.authorIcon} 
-                  />
-                  <Text style={styles.authorText}>
-                    {article.author} • {article.date}
-                  </Text>
+              <View style={styles.articleCardContent}>
+                <Text style={styles.articleCategory}>{item.category}</Text>
+                <Text style={styles.articleTitle} numberOfLines={2}>{item.title}</Text>
+                <View style={styles.articleMeta}>
+                  <Text style={styles.articleAuthor}>{item.author}</Text>
+                  <Text style={styles.articleDate}>{item.date}</Text>
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-        
-        <View style={styles.listContainer}>
-          <FlatList
-            data={filteredArticles}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.articleCard}
-                onPress={() => {
-                  const parentNavigator = navigation.getParent<NativeStackScreenProps<RootStackParamList>['navigation']>();
-                  if (parentNavigator) {
-                    parentNavigator.navigate('NewsDetail', { article: item });
-                  }
-                }}
-              >
-                <View style={styles.articleCardContent}>
-                  <Text style={styles.articleCategory}>{item.category}</Text>
-                  <Text style={styles.articleTitle} numberOfLines={2}>{item.title}</Text>
-                  <View style={styles.articleMeta}>
-                    <Text style={styles.articleAuthor}>{item.author}</Text>
-                    <Text style={styles.articleDate}>{item.date}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
-            keyExtractor={item => item.id}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No articles found</Text>
-              </View>
-            }
-          />
-        </View>
-      </ScrollView>
+          )}
+          keyExtractor={item => item.id}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No articles found</Text>
+            </View>
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -189,16 +191,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     backgroundColor: 'white',
-  },
-  backButton: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#333',
   },
   headerTitle: {
     fontSize: 18,
@@ -319,7 +311,8 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   listContainer: {
-    padding: 15,
+    flex: 1,
+    paddingHorizontal: 15,
   },
   articleCard: {
     backgroundColor: 'white',

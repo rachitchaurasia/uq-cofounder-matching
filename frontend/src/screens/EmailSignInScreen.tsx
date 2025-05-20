@@ -4,8 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types'; 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
 import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EmailSignIn'>;
@@ -22,121 +20,70 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(emailToTest);
   };
 
-  const fetchUserProfile = async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      throw error;
-    }
-  };
-
-  // Connect to Supabase with user ID
-  const connectToSupabase = async (userId: string) => {
-    // No need to authenticate, just store user ID if needed
-    console.log("User logged in with ID:", userId);
-    return true;
-  };
-
   const handleSignIn = async () => {
-    try {
       setError(null);
       setLoading(true);
       
-      console.log(`POSTing to ${API_BASE_URL}/api/auth/login/ with explicit headers`);
-      
-      // Very explicit fetch with complete headers
-      const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: email,
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: email,
-          password: password
-        }),
+        password: password,
       });
-      
-      console.log("Status:", response.status);
-      
-      // Parse response
-      let data;
-      try {
-        data = await response.json();
-        console.log("Response data:", data);
-      } catch (jsonError) {
-        console.error("JSON parse error:", jsonError);
-        setError('Invalid response from server');
-        setLoading(false);
-        return;
-      }
-      
-      // Check if login succeeded
-      if (response.status !== 200 || !data.key) {
-        let errorMessage = 'Invalid email or password';
-        if (data.non_field_errors) {
-          errorMessage = data.non_field_errors[0];
+
+      if (signInError) {
+        console.error("Supabase Sign-In error:", signInError.message);
+        if (signInError.message.includes("Invalid login credentials")) {
+          setError("Invalid email or password. Please try again.");
+        } else if (signInError.message.includes("Email not confirmed")) {
+          setError("Please confirm your email before logging in.");
+          Alert.alert("Email Not Confirmed", "Please check your email to confirm your account first.");
+        } else {
+          setError(signInError.message || "An error occurred during sign-in.");
         }
-        setError(errorMessage);
         setLoading(false);
         return;
       }
       
-      // Save token
-      try {
-        await AsyncStorage.setItem('authToken', data.key);
-        console.log("Token saved successfully");
-      } catch (storageError) {
-        console.error("Storage error:", storageError);
-        setError('Failed to save login info');
-        setLoading(false);
-        return;
-      }
-      
-      // Get user profile
-      const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-        headers: {
-          'Authorization': `Token ${data.key}`,
-        },
-      });
-      
-      if (profileResponse.ok) {
-        const userData = await profileResponse.json();
-        // Connect to Supabase
-        await connectToSupabase(userData.user.id.toString());
-      }
-      
-      // Navigate successfully
+      console.log("Supabase Sign-In successful:", data);
+      // Session is now handled by Supabase client and onAuthStateChange listener.
+      // The global listener in RootNavigator.tsx should navigate the user appropriately.
+      // No explicit navigation.reset() needed here.
+
+    } catch (e: any) {
+      console.error("Unexpected error in sign-in flow:", e);
+      setError(e.message || 'An unexpected error occurred');
+    } finally {
       setLoading(false);
-      console.log("Login successful, navigating to Welcome");
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }],
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert("Input Required", "Please enter your email address to reset your password.");
+      return;
+    }
+    if (!isEmailValid(email)) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'yourapp://reset-password-callback' // Replace with your app's deep link for password reset callback if any
       });
-      
-    } catch (e) {
-      // Ultimate fallback error handler
-      console.error("Unexpected error in login flow:", e);
-      setError('An unexpected error occurred');
       setLoading(false);
+      if (resetError) {
+        console.error("Password reset error:", resetError);
+        Alert.alert("Error Sending Reset Email", resetError.message || "Could not send password reset email. Please try again.");
+      } else {
+        Alert.alert("Password Reset Email Sent", "If an account exists for this email, a password reset link has been sent. Please check your inbox (and spam folder).");
+      }
+    } catch (e: any) {
+      setLoading(false);
+      console.error("Forgot password unexpected error:", e);
+      Alert.alert("Error", e.message || "An unexpected error occurred.");
     }
   };
 
@@ -203,6 +150,14 @@ export const EmailSignInScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.signInButtonText}>Sign In</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={styles.forgotPasswordLink}
+            onPress={handleForgotPassword}
+            disabled={loading}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.registerLink}
@@ -293,6 +248,15 @@ const styles = StyleSheet.create({
   },
   registerLinkText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+  forgotPasswordLink: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: '#B0B0B0', // Lighter color for less emphasis
     fontSize: 14,
     textDecorationLine: 'underline',
   }
