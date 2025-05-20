@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Dimensions } from 'react-native';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // No longer needed
 // import { API_BASE_URL } from '../config'; // No longer needed
-import { getConversations } from '../services/ChatService';
+import { getConversations, getGroupConversations, IGroupConversation } from '../services/ChatService';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { BottomTabParamList } from '../navigation/types';
 import { supabase } from '../supabaseClient'; // Import Supabase
+import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 
 // Define the structure of a conversation object coming from ChatService/Supabase
 interface SupabaseConversation {
@@ -29,28 +30,147 @@ type Conversation = {
   lastMessageTime: Date;
 };
 
-export const MessagesScreen: React.FC = () => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
-  // const [currentUserId, setCurrentUserId] = useState<string | null>(null); // No longer needed as state
-  const [refreshing, setRefreshing] = useState(false);
+// Placeholder for Group Conversations
+const GroupConversationsScreen: React.FC = () => {
+  const [groupConversations, setGroupConversations] = useState<IGroupConversation[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [refreshingGroups, setRefreshingGroups] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
 
-  const fetchConversations = async () => {
-    setLoading(true);
+  const fetchGroupConvos = async () => {
+    setLoadingGroups(true);
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        console.log('No Supabase user signed in for GroupMessagesScreen');
+        setLoadingGroups(false);
+        setGroupConversations([]);
+        return;
+      }
+      const groups = await getGroupConversations(currentUser.id);
+      setGroupConversations(groups);
+    } catch (error) {
+      console.error("Error fetching group conversations:", error);
+      setGroupConversations([]);
+    } finally {
+      setLoadingGroups(false);
+      setRefreshingGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroupConvos();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGroupConvos();
+      return () => {}; 
+    }, [])
+  );
+
+  const handleRefreshGroups = () => {
+    setRefreshingGroups(true);
+    fetchGroupConvos();
+  };
+
+  const openGroupConversation = (groupId: string, groupName?: string, eventId?: string) => {
+    navigation.navigate('MessagesTab', {
+      screen: 'Conversation',
+      params: {
+        groupId: groupId, 
+        groupName: groupName || 'Group Chat',
+        isGroupChat: true,
+        eventId: eventId,
+      }
+    });
+  };
+
+  if (loadingGroups && groupConversations.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <ActivityIndicator size="large" color="#9C27B0" />
+        <Text style={styles.loadingText}>Loading group chats...</Text>
+      </View>
+    );
+  }
+
+  if (groupConversations.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No group chats yet.</Text>
+        <Text style={styles.emptySubtext}>Join event chats or create new groups.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={groupConversations}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <TouchableOpacity 
+          style={styles.conversationItem}
+          onPress={() => openGroupConversation(item.id, item.name, item.event_id)}
+        >
+          <Image 
+            source={item.avatar_url ? { uri: item.avatar_url } : require('../assets/default-group-avatar.png')}
+            style={styles.avatar}
+          />
+          <View style={styles.conversationDetails}>
+            <View style={styles.nameTimeRow}>
+              <Text style={styles.name}>{item.name}</Text>
+              {item.lastMessageTime && (
+                <Text style={styles.time}>
+                  {new Date(item.lastMessageTime).toLocaleDateString() === new Date().toLocaleDateString() 
+                    ? new Date(item.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                    : new Date(item.lastMessageTime).toLocaleDateString()}
+                </Text>
+              )}
+            </View>
+            <Text 
+              style={styles.message}
+              numberOfLines={1}
+            >
+              {item.lastMessage || (item.event_id ? 'Event chat created' : 'No messages yet')}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      refreshing={refreshingGroups}
+      onRefresh={handleRefreshGroups}
+      contentContainerStyle={groupConversations.length === 0 ? styles.emptyList : null}
+    />
+  );
+};
+
+export const MessagesScreen: React.FC = () => {
+  const [directConversations, setDirectConversations] = useState<Conversation[]>([]);
+  const [loadingDirect, setLoadingDirect] = useState(true);
+  const [refreshingDirect, setRefreshingDirect] = useState(false);
+  const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
+
+  const [index, setIndex] = React.useState(0);
+  const [routes] = React.useState([
+    { key: 'direct', title: 'Direct' },
+    { key: 'groups', title: 'Groups' },
+  ]);
+
+  const fetchDirectConversations = async () => {
+    setLoadingDirect(true);
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
         console.log('No Supabase user signed in for MessagesScreen');
-        setLoading(false);
-        setConversations([]); // Clear conversations if no user
+        setLoadingDirect(false);
+        setDirectConversations([]); // Clear conversations if no user
         return;
       }
       const currentUserId = currentUser.id;
       
       // Get conversations from Supabase via ChatService
       const supabaseConversations: SupabaseConversation[] = await getConversations(currentUserId);
-      console.log("Fetched Supabase conversations raw:", supabaseConversations);
+      console.log("Fetched Supabase direct conversations raw:", supabaseConversations);
       
       const formattedConversations: Conversation[] = [];
       
@@ -110,7 +230,7 @@ export const MessagesScreen: React.FC = () => {
             }
 
           } catch (error) {
-            console.error(`Error processing conversation for otherUser ${otherUserId}:`, error);
+            console.error(`Error processing direct conversation for otherUser ${otherUserId}:`, error);
             // Fallback for unexpected errors during profile processing
             formattedConversations.push({
               id: convo.id,
@@ -129,33 +249,38 @@ export const MessagesScreen: React.FC = () => {
         b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
       );
       
-      setConversations(formattedConversations);
+      setDirectConversations(formattedConversations);
     } catch (error) {
-      console.error('Error in top-level fetchConversations:', error);
-      setConversations([]); // Clear conversations on top-level error
+      console.error('Error in top-level fetchDirectConversations:', error);
+      setDirectConversations([]); // Clear conversations on top-level error
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoadingDirect(false);
+      setRefreshingDirect(false);
     }
   };
 
   useEffect(() => {
-    fetchConversations();
+    fetchDirectConversations();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchConversations();
-      return () => {}; // Optional: cleanup function
-    }, [])
+      if (index === 0) { // Only fetch direct messages if on the Direct tab
+        fetchDirectConversations();
+      } else if (index === 1) {
+        // The GroupConversationsScreen component has its own useEffect and useFocusEffect
+        // for fetching its data. We could also trigger it from here if preferred.
+      }
+      return () => {}; 
+    }, [index]) 
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchConversations();
+  const handleRefreshDirect = () => {
+    setRefreshingDirect(true);
+    fetchDirectConversations();
   };
 
-  const openConversation = (conversationId: string, otherUser: ConversationUser) => {
+  const openDirectConversation = (conversationId: string, otherUser: ConversationUser) => {
     // The conversationId here is the chat_room_id
     // The otherUser.id is the Supabase UUID of the other user
     navigation.navigate('MessagesTab', {
@@ -171,55 +296,87 @@ export const MessagesScreen: React.FC = () => {
     });
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Messages</Text>
-      {loading && conversations.length === 0 ? (
+  const DirectMessagesList: React.FC = () => {
+    if (loadingDirect && directConversations.length === 0) {
+      return (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#9C27B0" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
-      ) : conversations.length === 0 ? (
+      );
+    }
+    if (directConversations.length === 0) {
+      return (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No conversations yet</Text>
+          <Text style={styles.emptyText}>No direct messages yet</Text>
           <Text style={styles.emptySubtext}>Connect with matches to start chatting</Text>
         </View>
-      ) : (
-        <FlatList
-          data={conversations}
-          keyExtractor={(item) => item.id} // item.id is chat_room_id
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.conversationItem}
-              onPress={() => openConversation(item.id, item.otherUser)}
-            >
-              <Image 
-                source={item.otherUser.avatar ? { uri: item.otherUser.avatar } : require('../assets/default-avatar.png')} 
-                style={styles.avatar}
-              />
-              <View style={styles.conversationDetails}>
-                <View style={styles.nameTimeRow}>
-                  <Text style={styles.name}>{item.otherUser.name}</Text>
-                  <Text style={styles.time}>
-                    {item.lastMessageTime.toLocaleDateString() === new Date().toLocaleDateString() 
-                      ? item.lastMessageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                      : item.lastMessageTime.toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text 
-                  style={styles.message}
-                  numberOfLines={1}
-                >
-                  {item.lastMessage}
+      );
+    }
+    return (
+      <FlatList
+        data={directConversations}
+        keyExtractor={(item) => item.id} // item.id is chat_room_id
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.conversationItem}
+            onPress={() => openDirectConversation(item.id, item.otherUser)}
+          >
+            <Image 
+              source={item.otherUser.avatar ? { uri: item.otherUser.avatar } : require('../assets/default-avatar.png')} 
+              style={styles.avatar}
+            />
+            <View style={styles.conversationDetails}>
+              <View style={styles.nameTimeRow}>
+                <Text style={styles.name}>{item.otherUser.name}</Text>
+                <Text style={styles.time}>
+                  {item.lastMessageTime.toLocaleDateString() === new Date().toLocaleDateString() 
+                    ? item.lastMessageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                    : item.lastMessageTime.toLocaleDateString()}
                 </Text>
               </View>
-            </TouchableOpacity>
-          )}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          contentContainerStyle={conversations.length === 0 ? styles.emptyList : null}
-        />
-      )}
+              <Text 
+                style={styles.message}
+                numberOfLines={1}
+              >
+                {item.lastMessage}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        refreshing={refreshingDirect}
+        onRefresh={handleRefreshDirect}
+        contentContainerStyle={directConversations.length === 0 ? styles.emptyList : null}
+      />
+    );
+  };
+
+  const renderScene = SceneMap({
+    direct: DirectMessagesList,
+    groups: GroupConversationsScreen,
+  });
+
+  const renderTabBar = (props: any) => (
+    <TabBar
+      {...props}
+      indicatorStyle={styles.tabIndicator}
+      style={styles.tabBar}
+      labelStyle={styles.tabLabel}
+      activeColor="#9C27B0"
+      inactiveColor="#555"
+    />
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Messages</Text>
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: Dimensions.get('window').width }}
+        renderTabBar={renderTabBar}
+      />
     </View>
   );
 };
@@ -300,5 +457,21 @@ const styles = StyleSheet.create({
     flexGrow: 1, // Ensure emptyContainer styles apply when list is empty after loading
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Styles for TabView
+  tabBar: {
+    backgroundColor: '#F8F9FA', // Match container background or choose a distinct color
+    elevation: 0, // Remove shadow on Android
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0', // Light border for separation
+  },
+  tabIndicator: {
+    backgroundColor: '#9C27B0', // Purple accent color
+    height: 3,
+  },
+  tabLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    textTransform: 'capitalize', // Keep it simple, or use 'uppercase' if preferred
   }
 }); 

@@ -75,13 +75,20 @@ export type ProfileTabScreenProps = BottomTabScreenProps<BottomTabParamList, 'Pr
 export type MessagesStackParamList = {
   MessagesList: undefined;
   Conversation: {
-    conversationId: string;
-    channelId?: string;
+    // For Direct Chats
+    conversationId?: string; // This is the chat_room_id for direct messages
     otherUser?: {
       id: string;
       name: string;
       position?: string;
       imageUrl?: string;
     };
+    // For Group Chats
+    groupId?: string;
+    groupName?: string;
+    isGroupChat?: boolean;
+    eventId?: string; // Optional: if the group chat is linked to an event
+    // Common - channelId might be deprecated or refactored based on usage
+    channelId?: string; 
   };
 };

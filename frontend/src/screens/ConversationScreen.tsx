@@ -14,7 +14,14 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessagesStackParamList } from '../navigation/types';
-import { sendMessage, subscribeToMessages, IMessage } from '../services/ChatService';
+import { 
+  sendMessage, 
+  subscribeToMessages, 
+  IMessage, 
+  sendGroupMessage, 
+  subscribeToGroupMessages, 
+  fetchGroupMessages 
+} from '../services/ChatService';
 import { supabase } from '../supabaseClient';
 
 type ConversationScreenRouteProp = RouteProp<MessagesStackParamList, 'Conversation'>;
@@ -69,14 +76,16 @@ export const ConversationScreen: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<ChatCurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
-  const { conversationId, otherUser } = route.params || {};
+  const { conversationId, otherUser, groupId, groupName, isGroupChat, eventId } = route.params || {};
 
   // Set title
   useEffect(() => {
-    if (otherUser?.name) {
+    if (isGroupChat && groupName) {
+      navigation.setOptions({ title: groupName });
+    } else if (otherUser?.name) {
       navigation.setOptions({ title: otherUser.name });
     }
-  }, [otherUser, navigation]);
+  }, [isGroupChat, groupName, otherUser, navigation]);
 
   // Load current user data from Supabase
   useEffect(() => {
@@ -134,53 +143,52 @@ export const ConversationScreen: React.FC = () => {
 
   // For testing: add a sample message if none exist - REMOVE OR ADJUST THIS
   useEffect(() => {
-    if (!loading && currentUser && messages.length === 0 && Platform.OS !== 'web') { // Check currentUser
+    if (!loading && currentUser && messages.length === 0 && Platform.OS !== 'web') { 
       // console.log("Current user for sample messages:", currentUser);
-      // const sampleMessages: IMessage[] = [
-      //   {
-      //     _id: 'sample-1',
-      //     text: 'Welcome! This is a sample message.',
-      //     createdAt: new Date(),
-      //     user: { _id: otherUser?.id || 'other-sample', name: otherUser?.name || 'Other User' }
-      //   },
-      //   {
-      //     _id: 'sample-2',
-      //     text: 'This is how your messages will look.',
-      //     createdAt: new Date(Date.now() - 1000 * 60), 
-      //     user: { _id: currentUser._id, name: currentUser.name, avatar: currentUser.avatar }
-      //   }
-      // ];
-      // setMessages(sampleMessages);
-      // console.log("Sample messages set.");
+      // Sample message logic (currently commented out) - adjust if needed for groups
     }
-  }, [loading, currentUser, messages.length, otherUser]);
+  }, [loading, currentUser, messages.length, otherUser, isGroupChat, groupId]);
 
-  // Subscribe to messages
+  // Subscribe to messages (Direct or Group)
   useEffect(() => {
-    if (!currentUser || !otherUser) return;
-    
-    console.log("Subscribing to messages between", currentUser._id, "and", otherUser.id.toString());
-    const unsubscribe = subscribeToMessages(
-      currentUser._id,
-      otherUser.id.toString(),
-      (fetchedMessages) => {
-        console.log("Received messages:", fetchedMessages.length);
+    if (!currentUser) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (isGroupChat && groupId) {
+      console.log("Subscribing to group messages for group:", groupId);
+      unsubscribe = subscribeToGroupMessages(groupId, (fetchedMessages) => {
+        console.log("Received group messages:", fetchedMessages.length);
         setMessages(fetchedMessages);
-      }
-    );
+      });
+      // Optionally, fetch initial messages if subscribeToGroupMessages doesn't do it
+      // fetchGroupMessages(groupId).then(setMessages);
+    } else if (!isGroupChat && conversationId && otherUser) {
+      console.log("Subscribing to direct messages between", currentUser._id, "and", otherUser.id.toString());
+      unsubscribe = subscribeToMessages(
+        currentUser._id,
+        otherUser.id.toString(),
+        (fetchedMessages) => {
+          console.log("Received direct messages:", fetchedMessages.length);
+          setMessages(fetchedMessages);
+        }
+      );
+    }
     
     return () => {
       if (unsubscribe) {
+        console.log(isGroupChat ? "Unsubscribing from group" : "Unsubscribing from direct chat");
         unsubscribe();
       }
     };
-  }, [currentUser, otherUser]);
+  }, [currentUser, conversationId, otherUser, groupId, isGroupChat]);
 
   // Send message handler
   const handleSend = async () => {
-    if (!inputText.trim() || !currentUser || !otherUser) return;
+    if (!inputText.trim() || !currentUser) return;
+    if (!isGroupChat && !otherUser) return; // Need otherUser for direct
+    if (isGroupChat && !groupId) return; // Need groupId for group
     
-    // Create a temporary message to show immediately
     const tempMessage: IMessage = {
       _id: Date.now().toString(),
       text: inputText.trim(),
@@ -199,11 +207,19 @@ export const ConversationScreen: React.FC = () => {
     setInputText('');
     
     try {
-      await sendMessage(
-        messageToSend,
-        currentUser,
-        otherUser.id.toString()
-      );
+      if (isGroupChat && groupId) {
+        await sendGroupMessage(
+          messageToSend,
+          groupId,
+          currentUser._id // senderId for group messages
+        );
+      } else if (!isGroupChat && otherUser) {
+        await sendMessage(
+          messageToSend,
+          currentUser, // Old sendMessage expects the full currentUser object
+          otherUser.id.toString()
+        );
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // You could add error handling UI here
@@ -211,19 +227,28 @@ export const ConversationScreen: React.FC = () => {
   };
 
   const createTestMessage = async () => {
-    if (!currentUser || !otherUser) return;
-    
-    const testMessage = `Test message ${new Date().toLocaleTimeString()}`;
-    
-    try {
-      await sendMessage(
-        testMessage,
-        currentUser,
-        otherUser.id.toString()
-      );
-      console.log("Test message sent!");
-    } catch (error) {
-      console.error("Error sending test message:", error);
+    if (!currentUser) return;
+
+    if (isGroupChat && groupId) {
+      const testMessage = `Test group message ${new Date().toLocaleTimeString()}`;
+      try {
+        await sendGroupMessage(testMessage, groupId, currentUser._id);
+        console.log("Test group message sent!");
+      } catch (error) {
+        console.error("Error sending test group message:", error);
+      }
+    } else if (!isGroupChat && otherUser) {
+      const testMessage = `Test direct message ${new Date().toLocaleTimeString()}`;
+      try {
+        await sendMessage(
+          testMessage,
+          currentUser,
+          otherUser.id.toString()
+        );
+        console.log("Test direct message sent!");
+      } catch (error) {
+        console.error("Error sending test direct message:", error);
+      }
     }
   };
 
@@ -236,7 +261,7 @@ export const ConversationScreen: React.FC = () => {
     );
   }
 
-  if (!currentUser || !otherUser) {
+  if (!currentUser || (!isGroupChat && !otherUser) || (isGroupChat && !groupId) ) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>
