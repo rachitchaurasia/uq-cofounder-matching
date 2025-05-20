@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { updateProfile } from '../api/profile';
+import { supabase } from '../supabaseClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CompanyInfo'>;
 
@@ -33,18 +33,34 @@ export const CompanyInfoScreen: React.FC<Props> = ({ navigation }) => {
     
     setLoading(true);
     try {
-      const payload = {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        return;
+      }
+
+      const updates = {
         current_company_name: companyName.trim(),
-        position: position.trim()
+        position: position.trim(),
+        updated_at: new Date().toISOString(),
       };
       
-      await updateProfile(payload);
-      console.log('Successfully saved company info');
-      // Navigate to the next screen (Welcome or another onboarding screen)
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save company info to Supabase:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully saved company info to Supabase profile');
       navigation.navigate('Role');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save company info:', error);
-      Alert.alert('Error', 'Failed to save your company information. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save your company information. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -125,7 +141,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#a702c8',
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',

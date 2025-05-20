@@ -14,11 +14,16 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessagesStackParamList } from '../navigation/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
 import { sendMessage, subscribeToMessages, IMessage } from '../services/ChatService';
+import { supabase } from '../supabaseClient';
 
 type ConversationScreenRouteProp = RouteProp<MessagesStackParamList, 'Conversation'>;
+
+interface ChatCurrentUser {
+  _id: string; // Supabase user ID (UUID)
+  name: string;
+  avatar?: string;
+}
 
 // Simple message component
 const MessageBubble = ({ message, isOwnMessage }: { message: IMessage, isOwnMessage: boolean }) => {
@@ -61,7 +66,7 @@ export const ConversationScreen: React.FC = () => {
   const route = useRoute<ConversationScreenRouteProp>();
   const navigation = useNavigation<NativeStackNavigationProp<MessagesStackParamList>>();
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<ChatCurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const { conversationId, otherUser } = route.params || {};
@@ -73,33 +78,53 @@ export const ConversationScreen: React.FC = () => {
     }
   }, [otherUser, navigation]);
 
-  // Load current user data
+  // Load current user data from Supabase
   useEffect(() => {
     const loadUserData = async () => {
+      setLoading(true);
       try {
-        const token = await AsyncStorage.getItem('authToken');
-        if (!token) {
-          throw new Error('No auth token found');
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          console.error('Error fetching Supabase user or no user logged in:', authError);
+          throw new Error(authError?.message || 'No authenticated Supabase user found.');
+        }
+
+        // Fetch profile details from Supabase 'profiles' table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching Supabase profile:', profileError);
+          // Fallback if profile fetch fails but auth user exists
+          setCurrentUser({
+            _id: authUser.id,
+            name: 'User ' + authUser.id.substring(0, 6), // Fallback name
+            avatar: undefined // Or a default avatar
+          });
+        } else if (profileData) {
+          setCurrentUser({
+            _id: authUser.id,
+            name: profileData.full_name || 'User ' + authUser.id.substring(0, 6),
+            avatar: profileData.avatar_url
+          });
+        } else {
+            // Should not happen if no error, but handle just in case
+        setCurrentUser({
+                _id: authUser.id,
+                name: 'User ' + authUser.id.substring(0, 6),
+                avatar: undefined
+            });
         }
         
-        const profileResponse = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-        });
-        
-        if (!profileResponse.ok) throw new Error('Failed to fetch profile');
-        const profileData = await profileResponse.json();
-        
-        setCurrentUser({
-          _id: profileData.user.id.toString(),
-          name: `${profileData.user.first_name} ${profileData.user.last_name}`,
-          avatar: profileData.avatar || `https://ui-avatars.com/api/?name=${profileData.user.first_name}+${profileData.user.last_name}`
-        });
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading user data:', error);
+      } catch (error: any) {
+        console.error('Error loading user data for chat:', error.message);
+        // Potentially navigate away or show a persistent error
+        // For now, we just log and loading stops, which might show an error message
+      } finally {
         setLoading(false);
       }
     };
@@ -107,32 +132,28 @@ export const ConversationScreen: React.FC = () => {
     loadUserData();
   }, []);
 
-  // For testing: add a sample message if none exist
+  // For testing: add a sample message if none exist - REMOVE OR ADJUST THIS
   useEffect(() => {
-    if (!loading && messages.length === 0) {
-      const sampleMessages: IMessage[] = [
-        {
-          _id: '1',
-          text: 'Hello! Welcome to the chat. This is a sample message to show how the chat will look.',
-          createdAt: new Date(),
-          user: {
-            _id: currentUser ? 'other' : 'self',
-            name: 'Sample User',
-          }
-        },
-        {
-          _id: '2',
-          text: 'Hi there! This is what your messages will look like.',
-          createdAt: new Date(Date.now() - 1000 * 60), // 1 minute ago
-          user: {
-            _id: currentUser ? currentUser._id : 'self',
-            name: currentUser ? currentUser.name : 'You',
-          }
-        }
-      ];
-      setMessages(sampleMessages);
+    if (!loading && currentUser && messages.length === 0 && Platform.OS !== 'web') { // Check currentUser
+      // console.log("Current user for sample messages:", currentUser);
+      // const sampleMessages: IMessage[] = [
+      //   {
+      //     _id: 'sample-1',
+      //     text: 'Welcome! This is a sample message.',
+      //     createdAt: new Date(),
+      //     user: { _id: otherUser?.id || 'other-sample', name: otherUser?.name || 'Other User' }
+      //   },
+      //   {
+      //     _id: 'sample-2',
+      //     text: 'This is how your messages will look.',
+      //     createdAt: new Date(Date.now() - 1000 * 60), 
+      //     user: { _id: currentUser._id, name: currentUser.name, avatar: currentUser.avatar }
+      //   }
+      // ];
+      // setMessages(sampleMessages);
+      // console.log("Sample messages set.");
     }
-  }, [loading, currentUser, messages.length]);
+  }, [loading, currentUser, messages.length, otherUser]);
 
   // Subscribe to messages
   useEffect(() => {

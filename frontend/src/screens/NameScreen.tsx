@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet, ActivityInd
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { updateProfile } from "../api/profile";
+import { supabase } from "../supabaseClient";
 
 import crossIcon from "../assets/cross.png";
 
@@ -36,18 +36,32 @@ export const NameScreen = () => {
     }
     setLoading(true);
     try {
-      // We need to update the nested 'user' object for first/last name
-      const payload = {
-        user: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim()
-        }
-      };
-      const success = await updateProfile(payload);
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (success) {
-        navigation.navigate("CompanyInfo");
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        return;
       }
+
+      const updates = {
+        full_name: `${firstName.trim()} ${lastName.trim()}`,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error("Failed to save name to Supabase profile:", updateError);
+        throw updateError;
+      }
+
+      console.log("Name saved to Supabase profile successfully.");
+      navigation.navigate("CompanyInfo");
+
     } catch (error: any) {
       console.error("Failed to save name:", error);
       Alert.alert("Save Failed", error.message || "Could not save your name. Please try again.");

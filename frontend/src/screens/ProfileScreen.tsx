@@ -12,9 +12,7 @@ import {
   Modal,
   FlatList
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
-import { updateProfile } from '../api/profile';
+import { supabase } from '../supabaseClient';
 import { ProfileTabScreenProps } from '../navigation/types';
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -29,25 +27,41 @@ interface MatchResult {
   score: number;
 }
 
-// Define the type for our profile data
+// Define the type for our profile data - Align with Supabase 'profiles' table
 interface ProfileData {
-  user?: {
-    email: string;
-    first_name: string;
-    last_name: string;
-    id?: number;
-  };
-  about?: string;
+  id: string; // UUID from auth.users
+  updated_at?: string;
+  email?: string;
+  full_name?: string;
+  avatar_url?: string;
   city?: string;
+  country_code?: string;
   region?: string;
-  created_at?: string;
-  current_company_name?: string;
+  about?: string;
+  url?: string; // LinkedIn URL?
   position?: string;
-  url?: string;
+  current_company_name?: string;
+  current_company_id?: string;
+  experience_details?: string;
+  experience_level?: string;
+  education_summary?: string;
+  education_details?: string;
+  skills?: any; // JSONB, could be string[] or object, handle accordingly
+  skill_categories?: any; // JSONB
+  languages?: string;
+  interests?: any; // JSONB
+  startup_industries?: any; // JSONB
+  startup_goals?: string;
+  certifications?: string;
+  courses?: string;
+  recommendations_count?: number;
+  volunteer_experience?: string;
+  role?: string;
+  show_role_on_profile?: boolean;
+  looking_for?: string;
+  offers?: string;
   phone?: string;
-  skills?: string;
-  interests?: string;
-  startup_industries?: string;
+  created_at?: string;
 }
 
 export const ProfileScreen: React.FC<ProfileTabScreenProps> = ({ navigation }) => {
@@ -58,98 +72,129 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [bio, setBio] = useState('');
   const [website, setWebsite] = useState('');
   const [phone, setPhone] = useState('');
-  const [runningMatch, setRunningMatch] = useState(false);
-  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
-  const [showMatchModal, setShowMatchModal] = useState(false);
+
+  // Calculate profile completion percentage - Moved before useMemo and early returns
+  const calculateCompletion = () => {
+    if (!profileData) return 0;
+    
+    const fields = [
+      profileData.full_name,
+      profileData.about,
+      profileData.city,
+      profileData.region,
+      profileData.current_company_name,
+      profileData.url,
+      profileData.skills,
+      profileData.interests,
+      profileData.startup_industries
+    ];
+    
+    const filledFields = fields.filter(field => {
+        if (field === null || typeof field === 'undefined') return false;
+        if (typeof field === 'string') return field.trim() !== '';
+        if (Array.isArray(field)) return field.length > 0;
+        // Check if object is not empty
+        if (typeof field === 'object' && field !== null) return Object.keys(field).length > 0; 
+        return !!field; // boolean check for other non-empty values like numbers
+    }).length;
+
+    return fields.length > 0 ? Math.round((filledFields / fields.length) * 100) : 0;
+  };
+  
+  // useMemo for completion, called unconditionally at the top level of the component body
+  const completion = React.useMemo(() => calculateCompletion(), [profileData]);
 
   // Fetch profile data
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You need to be logged in to view your profile.');
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/profiles/me/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
+      if (error) {
+        console.error('Error fetching Supabase profile:', error);
+        if (error.code === 'PGRST116' || error.message.includes('JSON object requested, multiple (or no) rows returned')) {
+          Alert.alert('Profile Not Found', 'Could not find your profile. It might still be setting up if you just registered.');
+        } else {
+          throw error;
+        }
       }
 
-      const data = await response.json();
-      setProfileData(data);
+      if (data) {
+        setProfileData(data as ProfileData);
       setBio(data.about || '');
       setWebsite(data.url || '');
       setPhone(data.phone || '');
-    } catch (error) {
+      } else if (!error) {
+         Alert.alert('Profile Not Found', 'Your profile data could not be loaded.');
+      }
+
+    } catch (error: any) {
       console.error('Error fetching profile:', error);
-      Alert.alert('Error', 'Failed to load profile data');
+      Alert.alert('Error', error.message || 'Failed to load profile data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Save edited fields
-  const saveChanges = async () => {
-    try {
-      const payload = {
-        about: bio,
-        url: website,
-        // The phone field might not be directly in the model, may need adjustment
-        phone: phone
-      };
-
-      await updateProfile(payload);
-      setEditing(false);
-      fetchProfile(); // Refresh data
-    } catch (error) {
-      console.error('Error saving changes:', error);
-      Alert.alert('Error', 'Failed to save changes');
+  const handleLogout = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
+    setLoading(false);
+    if (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    } else {
+      // navigation.reset or navigate to SignIn is typically handled by onAuthStateChange listener
+      // If not, you can explicitly navigate here:
+      // nav.reset({ index: 0, routes: [{ name: 'SignIn' }] }); 
+      // For now, we assume onAuthStateChange will handle it.
+      console.log('User logged out');
     }
   };
 
-  // Run matching algorithm
-  const runMatching = async () => {
-    if (!profileData?.user?.id) {
-      Alert.alert('Error', 'Profile data not loaded');
-      return;
-    }
-
-    setRunningMatch(true);
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
+  // Save edited fields
+  const saveChanges = async () => {
+    if (!profileData?.id) {
+        Alert.alert('Error', 'Profile not loaded, cannot save changes.');
         return;
+    }
+    setLoading(true);
+    try {
+      const updates: Partial<ProfileData> = {
+        about: bio,
+        url: website,
+        phone: phone,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', profileData.id);
+
+      if (error) {
+        throw error;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/matching/run/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to run matching');
-      }
-
-      // Navigate to the matches screen instead of showing modal
-      navigation.getParent()?.navigate('MatchesTab');
-    } catch (error) {
-      console.error('Error running matching:', error);
-      Alert.alert('Error', 'Failed to run matching algorithm');
+      setEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+      await fetchProfile();
+    } catch (error: any) {
+      console.error('Error saving changes:', error);
+      Alert.alert('Error', error.message || 'Failed to save changes');
     } finally {
-      setRunningMatch(false);
+        setLoading(false);
     }
   };
 
@@ -164,66 +209,6 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
       </View>
     );
   }
-
-  // Calculate profile completion percentage
-  const calculateCompletion = () => {
-    if (!profileData) return 0;
-    
-    const fields = [
-      profileData.user?.first_name,
-      profileData.user?.last_name,
-      profileData.about,
-      profileData.city,
-      profileData.region,
-      profileData.current_company_name,
-      profileData.url,
-      profileData.skills,
-      profileData.interests,
-      profileData.startup_industries
-    ];
-    
-    const filledFields = fields.filter(field => field && field.trim() !== '').length;
-    return Math.round((filledFields / fields.length) * 100);
-  };
-
-  const completion = calculateCompletion();
-
-  // Add this function to handle connecting with a match
-  const handleConnect = async (userId: number) => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
-        return;
-      }
-      
-      // First navigate to the MessageTab
-      navigation.getParent()?.navigate('MessagesTab');
-      
-      // Create or open chat with this user
-      // In a real implementation, you would call your backend to start a conversation
-      Alert.alert('Success', 'Connection request sent!');
-    } catch (error) {
-      console.error('Error connecting with user:', error);
-      Alert.alert('Error', 'Failed to connect with user');
-    }
-  };
-
-  // Update the renderMatchItem function to include a Connect button
-  const renderMatchItem = ({ item }: { item: MatchResult }) => (
-    <View style={styles.matchItem}>
-      <View style={styles.matchInfo}>
-        <Text style={styles.matchName}>{item.name}</Text>
-        <Text style={styles.matchScore}>{Math.round(item.score * 100)}% Match</Text>
-      </View>
-      <TouchableOpacity 
-        style={styles.connectButton}
-        onPress={() => handleConnect(item.user_id)}
-      >
-        <Text style={styles.connectButtonText}>Connect</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <>
@@ -249,14 +234,14 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
               <Text style={styles.completionText}>{completion}% COMPLETE</Text>
             </View>
           </View>
-          <Text style={styles.name}>{profileData?.user?.first_name + ' ' + profileData?.user?.last_name || 'Your Name'}</Text>
+          <Text style={styles.name}>{profileData?.full_name || 'Your Name'}</Text>
 
           <Text style={styles.name}>{profileData?.current_company_name || 'Your Company'}</Text>
           <Text style={styles.tagline}>{profileData?.position || 'Your Position'}</Text>
           
           <View style={styles.infoContainer}>
             <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{profileData?.user?.email || 'No email provided'}</Text>
+            <Text style={styles.infoValue}>{profileData?.email || 'No email provided'}</Text>
             
             <Text style={styles.infoLabel}>When did you start building this project?</Text>
             <Text style={styles.infoValue}>
@@ -277,14 +262,14 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
         </View>
 
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Safety Info", "Safety features coming soon!")}>
             <Text style={styles.actionButtonIcon}>🔒</Text>
             <Text style={styles.actionButtonText}>SAFETY</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert("Saved Contacts", "Saved contacts feature coming soon!")}>
             <Text style={styles.actionButtonIcon}>♡</Text>
-            <Text style={styles.actionButtonText}>Saved Contact</Text>
+            <Text style={styles.actionButtonText}>SAVED</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -292,8 +277,30 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             onPress={() => setEditing(!editing)}
           >
             <Text style={styles.actionButtonIcon}>⚙️</Text>
-            <Text style={styles.actionButtonText}>Edit</Text>
+            <Text style={styles.actionButtonText}>EDIT</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* New row for Matches and QR Code buttons */}
+        <View style={[styles.buttonsContainer, { marginTop: 10 }]}> 
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('MatchesTab')}
+          >
+            <Text style={styles.actionButtonIcon}>🤝</Text> 
+            <Text style={styles.actionButtonText}>MATCHES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => Alert.alert("Share Profile", "QR code sharing coming soon!")} // Placeholder action
+          >
+            <Text style={styles.actionButtonIcon}>📱</Text> 
+            <Text style={styles.actionButtonText}>SHARE</Text>
+          </TouchableOpacity>
+          
+          {/* Keep a spacer if only two buttons, or adjust width if three buttons */}
+           <View style={styles.actionButton} /> 
         </View>
 
         <View style={styles.bioSection}>
@@ -376,21 +383,11 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity 
-          style={styles.matchButton}
-          onPress={runMatching}
-          disabled={runningMatch}
-        >
-          {runningMatch ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.matchButtonText}>MATCH</Text>
-          )}
-        </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.newsletterBanner}
-          onPress={() => nav.navigate("SignIn")}
+          onPress={handleLogout}
+          disabled={loading}
         >
           <Text style={styles.newsletterText}>LOGOUT</Text>
         </TouchableOpacity>
@@ -398,38 +395,6 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-      
-      {/* Match Results Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showMatchModal}
-        onRequestClose={() => setShowMatchModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Your Matches</Text>
-            
-            {matchResults.length > 0 ? (
-              <FlatList
-                data={matchResults}
-                renderItem={renderMatchItem}
-                keyExtractor={(item) => item.user_id.toString()}
-                style={styles.matchList}
-              />
-            ) : (
-              <Text style={styles.noMatchesText}>No matches found</Text>
-            )}
-            
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowMatchModal(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 };

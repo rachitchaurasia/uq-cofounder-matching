@@ -33,3 +33,5 @@ web-dashboard/node_modules/
 matchingapp-backend/__pycache__/
 __pycache__/
 /db.sqlite3
+.cursor
+.qodo

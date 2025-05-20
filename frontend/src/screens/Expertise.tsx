@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollVi
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { updateProfile } from "../api/profile";
+import { supabase } from "../supabaseClient";
 
 const backIcon = require("../assets/back-button.png");
 
@@ -77,17 +77,36 @@ export const Expertise = () => {
   const handleContinue = async () => {
     setLoading(true);
     try {
-      const payload = {
-        skills: selectedSkills.join(','),
-        skill_categories: selectedSkills?.join(',') // If you collect categories
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "No authenticated user found. Please sign in.");
+        setLoading(false);
+        // navigation.navigate("SignIn"); // Optionally navigate
+        return;
+      }
+
+      const updates = {
+        skills: selectedSkills, // Save as an array for JSONB
+        // skill_categories: selectedSkills?.join(',') // Removing this as it's not in the Supabase profiles table
+        updated_at: new Date().toISOString(),
       };
       
-      await updateProfile(payload);
-      console.log('Successfully saved skills:', selectedSkills);
+      // await updateProfile(payload); // Old call
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save skills to Supabase:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Successfully saved skills to Supabase profile:', selectedSkills);
       navigation.navigate('Interests');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save skills:', error);
-      Alert.alert('Error', 'Failed to save your expertise. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save your expertise. Please try again.');
     } finally {
       setLoading(false);
     }
