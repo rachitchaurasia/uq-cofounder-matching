@@ -100,9 +100,6 @@ export const NewsFeedScreen: React.FC<NewsFeedScreenNavigationProps> = ({ naviga
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>{"‹"}</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>News & Events</Text>
       </View>
       
@@ -194,16 +191,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     backgroundColor: 'white',
-  },
-  backButton: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#333',
   },
   headerTitle: {
     fontSize: 18,

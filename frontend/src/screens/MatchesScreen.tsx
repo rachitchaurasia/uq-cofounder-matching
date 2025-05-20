@@ -20,21 +20,31 @@ type MatchUser = {
 export const MatchesScreen: React.FC = () => {
   const [matches, setMatches] = useState<MatchUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const itemsPerPage = 15;
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
 
   useEffect(() => {
     fetchMatches();
   }, []);
 
-  const fetchMatches = async () => {
-    setLoading(true);
+  const fetchMatches = async (reset = true) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+    
     try {
       // Get current Supabase user
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
         console.error('No Supabase user found');
-        setMatches(getMockMatches()); // Fallback to mock if no user
-        setLoading(false);
+        setMatches(getMockMatches());
+        setHasMore(false);
         return;
       }
 
@@ -59,14 +69,14 @@ export const MatchesScreen: React.FC = () => {
       if (error) {
         console.error('Error fetching profiles from Supabase:', error);
         setMatches(getMockMatches()); // Fallback to mock data on error
-        setLoading(false);
+        setHasMore(false);
         return;
       }
 
       if (profiles) {
         // TODO: Integrate actual matching algorithm here
         // For now, just transform and assign a random score
-        const potentialMatches: MatchUser[] = profiles.map(profile => {
+        let potentialMatches: MatchUser[] = profiles.map(profile => {
           let interestsString = 'Interests not specified';
           if (Array.isArray(profile.interests)) {
             interestsString = profile.interests.join(', ');
@@ -84,7 +94,25 @@ export const MatchesScreen: React.FC = () => {
             // We'll need to pass the full profile object to the matching algorithm
           };
         });
-        setMatches(potentialMatches);
+        
+        // Sort by score descending
+        potentialMatches = potentialMatches.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        
+        // Calculate pagination
+        const startIndex = 0;
+        const endIndex = reset ? itemsPerPage : (page * itemsPerPage);
+        const paginatedMatches = potentialMatches.slice(startIndex, endIndex);
+        
+        // Update state
+        setMatches(paginatedMatches);
+        
+        // Determine if there are more items to load
+        setHasMore(paginatedMatches.length < potentialMatches.length);
+        
+        if (!reset) {
+          setPage(page + 1);
+        }
+        
       } else {
         setMatches(getMockMatches()); // Fallback if no profiles found
       }
@@ -92,8 +120,10 @@ export const MatchesScreen: React.FC = () => {
     } catch (e: any) { // Catch any type of error
       console.error('Error in fetchMatches:', e);
       setMatches(getMockMatches()); // Fallback to mock data on any unexpected error
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -163,10 +193,17 @@ export const MatchesScreen: React.FC = () => {
     navigation.navigate('ProfileTab');
   };
 
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setPage(prevPage => prevPage + 1);
+      fetchMatches(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#9C27B0" />
+        <ActivityIndicator size="large" color="#a702c8" />
       </View>
     );
   }
@@ -184,27 +221,52 @@ export const MatchesScreen: React.FC = () => {
          <View style={styles.emptyContainer}>
            <Text style={styles.emptyText}>No potential matches found at the moment.</Text>
            <Text style={styles.emptySubText}>Complete your profile to get better suggestions!</Text>
+           <TouchableOpacity 
+             style={styles.refreshButton}
+             onPress={() => fetchMatches()}
+             activeOpacity={0.7}
+           >
+             <Text style={styles.refreshButtonText}>Refresh</Text>
+           </TouchableOpacity>
          </View>
       ) : (
-      <FlatList
-        data={matches}
-          keyExtractor={(item) => item.id.toString()} // id is already string
-        renderItem={({ item }) => (
-          <MatchCard 
-            user={{
-              id: item.id,
-              name: item.name,
-              position: item.position,
-              interests: item.interests,
-              imageUrl: item.imageUrl,
-              score: item.score
-            }}
-            onConnect={() => handleConnect(item.id)} 
+        <View style={styles.matchesContainer}>
+          <FlatList
+            data={matches}
+            keyExtractor={(item) => item.id.toString()} // id is already string
+            renderItem={({ item }) => (
+              <MatchCard 
+                user={{
+                  id: item.id,
+                  name: item.name,
+                  position: item.position,
+                  interests: item.interests,
+                  imageUrl: item.imageUrl,
+                  score: item.score
+                }}
+                onConnect={() => handleConnect(item.id)} 
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
           />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+          
+          {hasMore && (
+            <View style={styles.loadMoreContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="large" color="#a702c8" />
+              ) : (
+                <TouchableOpacity 
+                  style={styles.loadMoreButton} 
+                  onPress={loadMore}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.loadMoreText}>Load More Matches</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -214,7 +276,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
-    // padding: 16, // Adjusted padding to be applied to specific inner elements if needed
+  },
+  matchesContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -232,7 +298,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 24,
-    color: '#333333',
+    color: '#a702c8',
   },
   title: {
     fontSize: 20,
@@ -248,6 +314,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -265,5 +332,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     textAlign: 'center',
+  },
+  refreshButton: {
+    backgroundColor: '#a702c8',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    elevation: 2,
+    marginTop: 20,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  loadMoreContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  loadMoreButton: {
+    backgroundColor: '#a702c8',
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    elevation: 4,
+    width: '80%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loadMoreText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   }
 }); 

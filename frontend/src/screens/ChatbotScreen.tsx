@@ -239,12 +239,12 @@ const ChatbotScreen: React.FC<ChatbotTabScreenProps> = () => {
       setMessages((prevMessages) => [...prevMessages, errorMessage]);
       if (errorMessage.animation) {
         Animated.timing(errorMessage.animation, {
-          toValue: 1,
+              toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+              useNativeDriver: true,
           easing: Easing.out(Easing.back(1)),
         }).start();
-      }
+        }
     } finally {
       setIsTyping(false);
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#a702c8', 
-    paddingTop: Platform.OS === 'ios' ? 10 : 20, 
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
     paddingBottom: 15,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -425,12 +425,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 10,
-    zIndex: 10, 
+    zIndex: 10,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', 
+    justifyContent: 'center',
     paddingHorizontal: 20,
   },
   headerTitle: {
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   headerIconContainer: {
-    position: 'absolute', 
+    position: 'absolute',
     right: 20,
     width: 36,
     height: 36,
@@ -456,28 +456,28 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB', 
+    backgroundColor: '#F9FAFB',
   },
   messagesContainer: {
     flex: 1,
   },
   messageContent: {
     padding: 16,
-    paddingBottom: 30, 
+    paddingBottom: 30,
   },
   messageBubble: {
     marginBottom: 16,
     flexDirection: 'row',
-    alignItems: 'flex-end', 
-    maxWidth: '85%', 
+    alignItems: 'flex-end',
+    maxWidth: '85%',
   },
   userMessage: {
     alignSelf: 'flex-end',
-    marginLeft: 50, 
+    marginLeft: 50,
   },
   botMessage: {
     alignSelf: 'flex-start',
-    marginRight: 50, 
+    marginRight: 50,
   },
   botAvatarContainer: {
     width: 36,
@@ -502,13 +502,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 14, // Horizontal padding
     paddingVertical: 10, // Vertical padding
-    minWidth: 60, 
-    maxWidth: '100%', 
-    flexShrink: 1, 
+    minWidth: 60,
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   userMessageBubble: {
     backgroundColor: '#a702c8', 
-    borderTopRightRadius: 3, 
+    borderTopRightRadius: 3,
     shadowColor: '#a702c8', 
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.15,
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   botMessageBubble: {
-    backgroundColor: 'white', 
-    borderTopLeftRadius: 3, 
+    backgroundColor: 'white',
+    borderTopLeftRadius: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -527,14 +527,14 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    flexWrap: 'wrap', 
+    flexWrap: 'wrap',
   },
   userMessageText: {
     color: 'white',
     flexShrink: 1,
   },
   botMessageText: {
-    color: '#374151', 
+    color: '#374151',
     flexShrink: 1,
   },
   timestamp: {
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
   botTimestamp: {
-    color: '#9CA3AF', 
+    color: '#9CA3AF',
   },
   typingContainer: {
     flexDirection: 'row',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 12, // Adjusted padding
     paddingHorizontal: 15, // Adjusted padding
-    height: 40, 
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -577,27 +577,27 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
   },
   inputWrapper: {
-    backgroundColor: 'white', 
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB', 
+    borderTopColor: '#E5E7EB',
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Adjusted padding for keyboard
     paddingHorizontal: 16,
-    shadowColor: '#000', 
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05, 
     shadowRadius: 5,
-    elevation: 5, 
+    elevation: 5,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB', 
-    borderRadius: 25, 
+    backgroundColor: '#F9FAFB',
+    borderRadius: 25,
     paddingLeft: 5, // Padding for text input part
     paddingRight: 5, // Padding for send button part
     borderWidth: 1,
-    borderColor: '#E5E7EB', 
+    borderColor: '#E5E7EB',
     marginBottom: 64,
   },
   input: {
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10, 
     fontSize: 16,
-    color: '#4B5563', 
+    color: '#4B5563',
   },
   sendButton: {
     width: 44, // Slightly adjusted size
