@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -17,7 +17,9 @@ import { ProfileTabScreenProps } from '../navigation/types';
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-const defaultLogo = require('../assets/company-logo.png');
+import { ProfileQRCode } from '../components/ProfileQRCode';
+import * as ImagePicker from 'expo-image-picker';
+const defaultLogo = require('../assets/default-avatar.png');
 
 
 // Define the type for match results
@@ -68,10 +70,17 @@ export const ProfileScreen: React.FC<ProfileTabScreenProps> = ({ navigation }) =
 const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [position, setPosition] = useState('');
   const [website, setWebsite] = useState('');
   const [phone, setPhone] = useState('');
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Calculate profile completion percentage - Moved before useMemo and early returns
   const calculateCompletion = () => {
@@ -102,7 +111,7 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   };
   
   // useMemo for completion, called unconditionally at the top level of the component body
-  const completion = React.useMemo(() => calculateCompletion(), [profileData]);
+  const completion = useMemo(() => calculateCompletion(), [profileData]);
 
   // Fetch profile data
   const fetchProfile = async () => {
@@ -132,9 +141,14 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
       if (data) {
         setProfileData(data as ProfileData);
-      setBio(data.about || '');
-      setWebsite(data.url || '');
-      setPhone(data.phone || '');
+        setBio(data.about || '');
+        setFullName(data.full_name || '');
+        setCity(data.city || '');
+        setRegion(data.region || '');
+        setCompanyName(data.current_company_name || '');
+        setPosition(data.position || '');
+        setWebsite(data.url || '');
+        setPhone(data.phone || '');
       } else if (!error) {
          Alert.alert('Profile Not Found', 'Your profile data could not be loaded.');
       }
@@ -173,6 +187,11 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     try {
       const updates: Partial<ProfileData> = {
         about: bio,
+        full_name: fullName,
+        city: city,
+        region: region,
+        current_company_name: companyName,
+        position: position,
         url: website,
         phone: phone,
         updated_at: new Date().toISOString()
@@ -195,6 +214,83 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
       Alert.alert('Error', error.message || 'Failed to save changes');
     } finally {
         setLoading(false);
+    }
+  };
+
+  const handleImagePick = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // Square aspect ratio for avatars
+      quality: 0.8, // Compress image slightly
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      uploadAvatar(asset.uri);
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!profileData?.id) {
+      Alert.alert('Error', 'Profile not loaded, cannot upload image.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const fileExt = uri.split('.').pop();
+      const fileName = `${profileData.id}.${Date.now()}.${fileExt}`;
+      const filePath = `${profileData.id}/${fileName}`;
+
+      // React Native needs a different way to get the blob for FormData
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatars') // Make sure 'avatars' bucket exists and has correct policies
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: true, // Overwrite if file with same name exists
+          contentType: blob.type // Pass content type
+        });
+
+      if (uploadError) {
+        console.error('Error uploading avatar to Supabase Storage:', uploadError);
+        throw uploadError;
+      }
+
+      if (data) {
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        const newAvatarUrl = urlData.publicUrl;
+
+        // Update profile with the new avatar URL
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: newAvatarUrl, updated_at: new Date().toISOString() })
+          .eq('id', profileData.id);
+
+        if (updateError) {
+          console.error('Error updating profile with new avatar URL:', updateError);
+          throw updateError;
+        }
+
+        // Refresh profile data to show new image
+        await fetchProfile(); 
+        Alert.alert('Success', 'Profile picture updated!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading image or updating profile:', error);
+      Alert.alert('Upload Failed', error.message || 'Could not upload image.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -225,19 +321,62 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
         <View style={styles.profileCard}>
           <View style={styles.profileImageContainer}>
-            <Image 
-              source={defaultLogo} 
-              style={styles.profileImage} 
-              resizeMode="contain"
-            />
+            <TouchableOpacity onPress={handleImagePick} disabled={uploading || editing}> 
+              <Image 
+                source={profileData?.avatar_url ? { uri: profileData.avatar_url } : defaultLogo} 
+                style={styles.profileImage} 
+                resizeMode="cover"
+              />
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                </View>
+              )}
+              {!uploading && !editing && (
+                <View style={styles.editImageButton}>
+                  <Text style={styles.editImageText}>EDIT</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.completionBadge}>
               <Text style={styles.completionText}>{completion}% COMPLETE</Text>
             </View>
           </View>
-          <Text style={styles.name}>{profileData?.full_name || 'Your Name'}</Text>
+          {editing ? (
+            <TextInput
+              style={styles.detailInput} 
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Your full name"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.name}>{profileData?.full_name || 'Your Name'}</Text>
+          )}
 
-          <Text style={styles.name}>{profileData?.current_company_name || 'Your Company'}</Text>
-          <Text style={styles.tagline}>{profileData?.position || 'Your Position'}</Text>
+          {editing ? (
+            <TextInput
+              style={styles.detailInput}
+              value={companyName}
+              onChangeText={setCompanyName}
+              placeholder="Your company name"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.name}>{profileData?.current_company_name || 'Your Company'}</Text>
+          )}
+          
+          {editing ? (
+            <TextInput
+              style={styles.detailInput}
+              value={position}
+              onChangeText={setPosition}
+              placeholder="Your position/role"
+              placeholderTextColor="#999"
+            />
+          ) : (
+            <Text style={styles.tagline}>{profileData?.position || 'Your Position'}</Text>
+          )}
           
           <View style={styles.infoContainer}>
             <Text style={styles.infoLabel}>Email</Text>
@@ -255,9 +394,28 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
             </Text>
             
             <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoValue}>
-              {[profileData?.city, profileData?.region].filter(Boolean).join(', ') || 'Not specified'}
-            </Text>
+            {editing ? (
+              <>
+                <TextInput
+                  style={styles.detailInput}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="City"
+                  placeholderTextColor="#999"
+                />
+                <TextInput
+                  style={[styles.detailInput, { marginTop: 10 }]}
+                  value={region}
+                  onChangeText={setRegion}
+                  placeholder="State/Region"
+                  placeholderTextColor="#999"
+                />
+              </>
+            ) : (
+              <Text style={styles.infoValue}>
+                {[profileData?.city, profileData?.region].filter(Boolean).join(', ') || 'Not specified'}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -293,14 +451,19 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => Alert.alert("Share Profile", "QR code sharing coming soon!")} // Placeholder action
+            onPress={() => setShowQRModal(true)}
           >
             <Text style={styles.actionButtonIcon}>📱</Text> 
             <Text style={styles.actionButtonText}>SHARE</Text>
           </TouchableOpacity>
           
-          {/* Keep a spacer if only two buttons, or adjust width if three buttons */}
-           <View style={styles.actionButton} /> 
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => nav.navigate('ChangePassword')}
+          >
+            <Text style={styles.actionButtonIcon}>🔑</Text> 
+            <Text style={styles.actionButtonText}>PASSWORD</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.bioSection}>
@@ -395,6 +558,29 @@ const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* QR Code Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showQRModal}
+        onRequestClose={() => {
+          setShowQRModal(!showQRModal);
+        }}
+      >
+        <View style={styles.modalCenteredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Scan to connect!</Text>
+            {profileData?.id && <ProfileQRCode userId={profileData.id} size={250} />}
+            <TouchableOpacity
+              style={[styles.button, styles.buttonClose]}
+              onPress={() => setShowQRModal(!showQRModal)}
+            >
+              <Text style={styles.textStyle}>Hide QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 };
@@ -736,4 +922,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  modalCenteredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+    marginTop: 15,
+  },
+  buttonClose: {
+    backgroundColor: "#9C27B0",
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center"
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: '500'
+  },
+  nameDisplay: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginVertical: 5,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 60,
+  },
+  editImageButton: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  editImageText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  }
 });

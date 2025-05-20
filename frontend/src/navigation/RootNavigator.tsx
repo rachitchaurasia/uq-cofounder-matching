@@ -20,6 +20,8 @@ import { RegistrationScreen } from '../screens/RegistrationScreen';
 import AppTabs from './AppTabs';
 import { NewsDetailScreen } from '../screens/NewsDetailScreen';
 import { CompanyInfoScreen } from '../screens/CompanyInfoScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
+import { UserProfileViewScreen } from '../screens/UserProfileViewScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -143,6 +145,8 @@ export const RootNavigator = () => {
                 component={NewsDetailScreen}
                 options={{ headerShown: true, title: 'Article Details' }}
             />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="UserProfileViewScreen" component={UserProfileViewScreen} options={{ headerShown: false }} />
           </>
         ) : (
           // No user is signed in

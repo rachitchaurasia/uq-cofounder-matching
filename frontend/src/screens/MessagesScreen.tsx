@@ -172,9 +172,14 @@ export const MessagesScreen: React.FC = () => {
       const supabaseConversations: SupabaseConversation[] = await getConversations(currentUserId);
       console.log("Fetched Supabase direct conversations raw:", supabaseConversations);
       
+      // Filter for actual direct conversations (exactly 2 participants)
+      const filteredDirectConversations = supabaseConversations.filter(
+        convo => convo.participants && convo.participants.length === 2
+      );
+      
       const formattedConversations: Conversation[] = [];
       
-      for (const convo of supabaseConversations) {
+      for (const convo of filteredDirectConversations) {
         // convo.participants should be an array like [userId1, userId2]
         const otherUserId = convo.participants.find(
           (id: string) => id !== currentUserId
@@ -385,7 +390,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
-    paddingTop: 20, // Add some padding at the top
+    paddingTop: 40, // Increased padding for potential iOS status bar/notch and to prevent overlap
   },
   title: {
     fontSize: 26,

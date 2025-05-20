@@ -32,8 +32,6 @@ const DashboardLayout = () => {
         </div>
         <nav className="dashboard-nav">
           <Link to="/dashboard/analytics">Analytics</Link>
-          {/* Corrected link to Django Admin */}
-          <a href={djangoAdminUrl} target="_blank" rel="noopener noreferrer">User Management</a>
         </nav>
         <div className="header-actions">
           {auth.isAuthenticated && (

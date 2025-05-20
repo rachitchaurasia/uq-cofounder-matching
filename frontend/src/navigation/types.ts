@@ -15,6 +15,8 @@ export type RootStackParamList = {
   MainApp: undefined; // This will host the Bottom Tab Navigator
   NewsDetail: { article: NewsArticle };
   CompanyInfo: undefined;
+  ChangePassword: undefined; // Added ChangePassword screen
+  UserProfileViewScreen: { userId: string; isReadOnly: true }; // Screen to view other users' profiles
 };
 
 // Define params for your new screens
