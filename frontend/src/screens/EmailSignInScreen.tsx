@@ -178,21 +178,27 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+    paddingTop: 10, // Add padding to top for small screens
   },
   backButton: {
-    padding: 20,
-    alignSelf: 'flex-start', // Position back button correctly
+    padding: 15,
+    paddingLeft: 20,
+    alignSelf: 'flex-start',
+    marginTop: 5,
+    zIndex: 10, // Ensure button is above other elements
+    minWidth: 50, // Ensure minimum touchable area
+    minHeight: 50, // Ensure minimum touchable area
   },
   backIcon: {
-    width: 24,
-    height: 24,
+    width: 28, // Slightly larger
+    height: 28, // Slightly larger
     tintColor: 'white',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 40, // Adjusted padding for content
+    paddingHorizontal: 40, 
     justifyContent: 'center',
-    // alignItems: 'center', // Removed align items center to allow labels to align left
+    paddingTop: 20, // Add padding to ensure content doesn't overlap with back button
   },
   label: {
     color: 'white',

@@ -9,11 +9,12 @@ import {
   FlatList, 
   TextInput, 
   TouchableOpacity,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Image
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MessagesStackParamList } from '../navigation/types';
+import { MessagesStackParamList, BottomTabParamList } from '../navigation/types';
 import { 
   sendMessage, 
   subscribeToMessages, 
@@ -23,6 +24,14 @@ import {
   fetchGroupMessages 
 } from '../services/ChatService';
 import { supabase } from '../supabaseClient';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+// Add composite navigation type to handle navigation from both stack and tab navigators
+type ConversationScreenNavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<MessagesStackParamList, 'Conversation'>,
+  BottomTabNavigationProp<BottomTabParamList>
+>;
 
 type ConversationScreenRouteProp = RouteProp<MessagesStackParamList, 'Conversation'>;
 
@@ -71,21 +80,37 @@ export const ConversationScreen: React.FC = () => {
   }
 
   const route = useRoute<ConversationScreenRouteProp>();
-  const navigation = useNavigation<NativeStackNavigationProp<MessagesStackParamList>>();
+  const navigation = useNavigation<ConversationScreenNavigationProp>();
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [currentUser, setCurrentUser] = useState<ChatCurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const { conversationId, otherUser, groupId, groupName, isGroupChat, eventId } = route.params || {};
+  const isFocused = useIsFocused();
 
-  // Set title
+  // Custom back handler
+  const handleBackNavigation = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // If can't go back (accessed directly from another tab), navigate to messages list
+      navigation.navigate('MessagesTab', {
+        screen: 'MessagesList'
+      });
+    }
+  };
+
+  // Set title and custom back button
   useEffect(() => {
+    if (!isFocused) return;
+    
+    // Set the title
     if (isGroupChat && groupName) {
       navigation.setOptions({ title: groupName });
     } else if (otherUser?.name) {
       navigation.setOptions({ title: otherUser.name });
     }
-  }, [isGroupChat, groupName, otherUser, navigation]);
+  }, [isFocused, isGroupChat, groupName, otherUser, navigation]);
 
   // Load current user data from Supabase
   useEffect(() => {
@@ -286,7 +311,7 @@ export const ConversationScreen: React.FC = () => {
           renderItem={({ item }) => (
             <MessageBubble
               message={item}
-              isOwnMessage={item.user._id === currentUser._id}
+              isOwnMessage={item.user._id === currentUser?._id}
             />
           )}
           contentContainerStyle={styles.messagesContainer}
@@ -301,6 +326,7 @@ export const ConversationScreen: React.FC = () => {
             placeholderTextColor="#999"
             returnKeyType="send"
             onSubmitEditing={handleSend}
+            multiline={false}
           />
           <TouchableOpacity
             style={[
@@ -309,6 +335,7 @@ export const ConversationScreen: React.FC = () => {
             ]}
             onPress={handleSend}
             disabled={!inputText.trim()}
+            accessibilityLabel="Send message"
           >
             <Text style={styles.sendButtonText}>Send</Text>
           </TouchableOpacity>
@@ -370,8 +397,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 62,
+    paddingVertical: 8,
+    marginBottom: Platform.OS === 'ios' ? 60 : 70,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
     backgroundColor: '#F5F7FA',
@@ -382,11 +409,12 @@ const styles = StyleSheet.create({
     borderColor: '#DDDDDD',
     borderRadius: 20,
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     marginRight: 10,
     backgroundColor: 'white',
     color: '#333',
     fontSize: 16,
+    maxHeight: 80,
   },
   sendButton: {
     backgroundColor: '#9C27B0',
@@ -444,5 +472,14 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  customBackButton: {
+    padding: 10,
+    marginLeft: 5,
+  },
+  backButtonIcon: {
+    width: 24, 
+    height: 24,
+    tintColor: '#9C27B0',
   },
 });

@@ -283,7 +283,7 @@ const ChatbotScreen: React.FC<ChatbotTabScreenProps> = () => {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0} 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0} 
     >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#a702c8" />
@@ -580,8 +580,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Adjusted padding for keyboard
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 10, 
     paddingHorizontal: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
@@ -594,18 +594,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderRadius: 25,
-    paddingLeft: 5, // Padding for text input part
-    paddingRight: 5, // Padding for send button part
+    paddingLeft: 5,
+    paddingRight: 5,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginBottom: 64,
+    marginBottom: Platform.OS === 'ios' ? 60 : 70,
   },
   input: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10, 
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8, 
     fontSize: 16,
     color: '#4B5563',
+    maxHeight: 80,
   },
   sendButton: {
     width: 44, // Slightly adjusted size
