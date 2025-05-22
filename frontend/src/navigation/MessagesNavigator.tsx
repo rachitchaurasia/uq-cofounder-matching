@@ -21,7 +21,14 @@ const CustomBackButton = () => {
       navigation.navigate('MessagesList');
     }
   };
+
+  return (
+    <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+      <Image source={require('../assets/back-button.png')} style={styles.backButtonIcon} />
+    </TouchableOpacity>
+  );
 };
+
 
 export const MessagesNavigator = () => {
   return (
