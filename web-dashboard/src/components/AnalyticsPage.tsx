@@ -381,12 +381,10 @@ const AnalyticsPage = () => {
              <div className="stat-card">
               <h3>Average Profile Completion</h3>
               <p className="stat-value">{data.average_profile_completion}%</p>
-              <small>(Placeholder)</small>
             </div>
             <div className="stat-card">
               <h3>Fully Completed Profiles</h3>
               <p className="stat-value">{data.fully_completed_profiles}</p>
-              <small>(Placeholder)</small>
             </div>
              <div className="stat-card">
               <h3>Profiles with Any Data</h3>
@@ -398,22 +396,6 @@ const AnalyticsPage = () => {
             <div className="chart-card">
               <Bar options={commonChartOptions('Account Age Distribution')} data={accountAgeChartData} />
             </div>
-          </div>
-          
-          <div className="profile-insights-discussion">
-            <h4>Further Profile Insights</h4>
-            <p>
-              We can add more detailed insights here based on your specific profile fields. 
-              For example, we could track:
-            </p>
-            <ul>
-              <li>Completion rates for fields like 'bio', 'skills', 'project interests', 'portfolio URL'.</li>
-              <li>Most common skills or interests listed by users.</li>
-              <li>Distribution of user-defined experience levels.</li>
-            </ul>
-            <p>
-              Please let me know which profile attributes are most important for you to analyze!
-            </p>
           </div>
         </>
       )}
