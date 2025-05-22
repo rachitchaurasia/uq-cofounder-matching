@@ -42,12 +42,15 @@ interface ChatCurrentUser {
 }
 
 // Simple message component
-const MessageBubble = ({ message, isOwnMessage }: { message: IMessage, isOwnMessage: boolean }) => {
+const MessageBubble = ({ message, isOwnMessage, isGroupChat }: { message: IMessage, isOwnMessage: boolean, isGroupChat?: boolean }) => {
   return (
     <View style={[
       styles.messageBubble,
       isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
     ]}>
+      {!isOwnMessage && isGroupChat && (
+        <Text style={styles.senderNameText}>{message.user.name}</Text>
+      )}
       <Text style={[
         styles.messageText,
         isOwnMessage ? styles.ownMessageText : styles.otherMessageText
@@ -312,6 +315,7 @@ export const ConversationScreen: React.FC = () => {
             <MessageBubble
               message={item}
               isOwnMessage={item.user._id === currentUser?._id}
+              isGroupChat={isGroupChat}
             />
           )}
           contentContainerStyle={styles.messagesContainer}
@@ -481,5 +485,11 @@ const styles = StyleSheet.create({
     width: 24, 
     height: 24,
     tintColor: '#9C27B0',
+  },
+  senderNameText: {
+    fontSize: 12,
+    color: 'black',
+    marginBottom: 4,
+    fontWeight: 'bold',
   },
 });
