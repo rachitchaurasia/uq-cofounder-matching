@@ -118,15 +118,24 @@ export const NetworkingEventScreen: React.FC<EventsTabScreenProps> = ({ navigati
     try {
       const { groupId, groupName } = await joinEventGroup(eventDetails.id, currentUserId, eventDetails.title);
       setEventGroupInfo({ isMember: true, groupId, groupName });
+      
+      // First navigate to the messages tab to ensure navigation stack is set up properly
       navigation.navigate('MessagesTab', {
-        screen: 'Conversation',
-        params: {
-          groupId: groupId,
-          groupName: groupName,
-          isGroupChat: true,
-          eventId: eventDetails.id
-        }
+        screen: 'MessagesList'
       });
+      
+      // Use setTimeout to ensure MessagesList is fully mounted before navigating to Conversation
+      setTimeout(() => {
+        navigation.navigate('MessagesTab', {
+          screen: 'Conversation',
+          params: {
+            groupId: groupId,
+            groupName: groupName,
+            isGroupChat: true,
+            eventId: eventDetails.id
+          }
+        });
+      }, 100);
     } catch (error: any) {
       Alert.alert("Error Joining Chat", error.message || "Could not join the event chat.");
       console.error("Error joining event chat:", error);
@@ -138,15 +147,40 @@ export const NetworkingEventScreen: React.FC<EventsTabScreenProps> = ({ navigati
 
   const handleViewEventChat = () => {
     if (eventGroupInfo.groupId && eventGroupInfo.groupName) {
-      navigation.navigate('MessagesTab', {
-        screen: 'Conversation',
-        params: {
-          groupId: eventGroupInfo.groupId,
-          groupName: eventGroupInfo.groupName,
-          isGroupChat: true,
-          eventId: eventDetails.id
-        }
-      });
+      // First check if we're already in the MessagesTab
+      const isInMessagesTab = navigation.getState().routeNames.includes('MessagesTab');
+      
+      if (isInMessagesTab) {
+        // Already in messages tab, we can navigate directly
+        navigation.navigate('MessagesTab', {
+          screen: 'Conversation',
+          params: {
+            groupId: eventGroupInfo.groupId,
+            groupName: eventGroupInfo.groupName,
+            isGroupChat: true,
+            eventId: eventDetails.id
+          }
+        });
+      } else {
+        // Not in messages tab, navigate to messages tab first, then to conversation
+        navigation.navigate('MessagesTab', {
+          screen: 'MessagesList',
+          params: {}, // No params needed for MessagesList
+        });
+        
+        // Use setTimeout to ensure MessagesList is fully mounted before navigating to Conversation
+        setTimeout(() => {
+          navigation.navigate('MessagesTab', {
+            screen: 'Conversation',
+            params: {
+              groupId: eventGroupInfo.groupId || '',
+              groupName: eventGroupInfo.groupName || '',
+              isGroupChat: true,
+              eventId: eventDetails.id
+            }
+          });
+        }, 100);
+      }
     } else {
       Alert.alert("Error", "Group chat details not found. Try rejoining.");
     }

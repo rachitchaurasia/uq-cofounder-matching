@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, TouchableOpacity, Image, Text, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, TouchableOpacity, Image, Text, StyleSheet, SafeAreaView, Keyboard, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTailwind } from 'tailwind-rn'; // Or your preferred Tailwind setup
 import { BottomTabParamList } from './types'; // Ensure this path is correct
@@ -35,6 +35,7 @@ const DEFAULT_COLOR = '#6B7280'; // A gray color
 const CustomBottomTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
   const tw = useTailwind();
   const [pressedIndex, setPressedIndex] = useState<number | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Map route names to their index in TAB_ITEMS to handle arbitrary order in navigator
   const routeNameToTabIndex = useMemo(() => {
@@ -44,6 +45,29 @@ const CustomBottomTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
     });
     return map;
   }, []);
+
+  // Add keyboard listeners to hide tab bar when keyboard is visible
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  // If keyboard is visible, don't render the tab bar
+  if (keyboardVisible) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,10 +146,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    // Remove elevation/shadow when keyboard is visible
+    zIndex: 5,
   },
   tabBar: {
     flexDirection: 'row',
-    height: 70,
+    height: 60, // Slightly reduced height for smaller devices
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e2e2e2',
@@ -142,7 +168,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6, // Reduced padding
   },
   iconContainer: {
     position: 'relative',
@@ -150,8 +176,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    width: 28,
-    height: 28,
+    width: 24, // Slightly reduced for smaller screens
+    height: 24, // Slightly reduced for smaller screens
   },
   iconPressed: {
     transform: [{ scale: 0.85 }],
