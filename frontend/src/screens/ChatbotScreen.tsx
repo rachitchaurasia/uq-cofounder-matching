@@ -30,7 +30,7 @@ interface Message {
   animation?: Animated.Value;
 }
 
-const GEMINI_API_KEY = 'AIzaSyChMLr00NnQjnvliEmMdIG_coQxDF1APDI';
+const GEMINI_API_KEY = 'Your API Key';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 const SYSTEM_PROMPT = `You are an AI-Powered Chatbot for Startup Guidance, specifically for users associated with UQ (University of Queensland) Ventures.
